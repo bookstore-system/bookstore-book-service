@@ -1,6 +1,6 @@
-package com.notfound.bookstore.model.dto.response.bookresponse;
+package dto.response.bookresponse;
 
-import com.notfound.bookstore.model.entity.Book;
+import hamtech.bookstorebookservice.entity.Book;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -19,10 +19,7 @@ public class BookSummaryResponse implements Serializable {
     Double price;
     Double discountPrice;
     String mainImageUrl;
-    Double averageRating;
-    Integer reviewCount;
     Integer stockQuantity;
-    Book.Status status;
     List<String> authorNames;
     List<String> categoryId;
 }

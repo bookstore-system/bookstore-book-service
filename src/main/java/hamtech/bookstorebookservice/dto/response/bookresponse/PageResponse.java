@@ -1,4 +1,4 @@
-package com.notfound.bookstore.model.dto.response.bookresponse;
+package dto.response.bookresponse;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
