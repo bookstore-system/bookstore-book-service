@@ -21,13 +21,19 @@ services:
       - bookstore-network
 
   book-service:
-    build: .
+    build: 
+      context: .
+      target: build
     container_name: book-service
     depends_on:
       book-db:
         condition: service_healthy
     ports:
       - "8082:8080"
+    volumes:
+      - .:/build
+      - ~/.m2:/root/.m2
+    command: mvn spring-boot:run -Dspring-boot.run.profiles=docker
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:mysql://book-db:3306/bookstore_book?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
