@@ -21,7 +21,7 @@ services:
       - bookstore-network
 
   book-service:
-    build: .
+    image: truongikpk/bookstore-book-service:v1.0.0
     container_name: book-service
     depends_on:
       book-db:
