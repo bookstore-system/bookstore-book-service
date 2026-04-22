@@ -23,3 +23,32 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: book-service-config
+              key: DB_HOST
+
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: book-service-config
+              key: DB_PORT
+
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: book-service-config
+              key: DB_NAME
+
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: book-service-secret
+              key: DB_USERNAME
+
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: book-service-secret
+              key: DB_PASSWORD
