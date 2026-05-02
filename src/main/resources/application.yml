@@ -1,5 +1,7 @@
 spring:
   application:
     name: bookstore-book-service
+  profiles:
+    active: dev
 server:
   port: 8080
