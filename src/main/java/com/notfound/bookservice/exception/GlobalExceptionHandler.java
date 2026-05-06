@@ -26,6 +26,12 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.<Void>builder().code(400).message(message).data(null).build());
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBadRequest(IllegalArgumentException ex) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.<Void>builder().code(400).message(ex.getMessage()).data(null).build());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnknown(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
