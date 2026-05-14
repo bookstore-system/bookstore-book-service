@@ -11,4 +11,6 @@ import java.util.UUID;
 public interface CategoryRepository extends JpaRepository<Category, UUID> {
     @Query("SELECT c FROM Category c ORDER BY SIZE(c.books) DESC")
     List<Category> findPopularCategories(Pageable pageable);
+
+    boolean existsByNameIgnoreCase(String name);
 }

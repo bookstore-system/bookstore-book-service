@@ -3,7 +3,9 @@ package com.notfound.bookservice.service;
 import com.notfound.bookservice.model.dto.request.BookFilterRequest;
 import com.notfound.bookservice.model.dto.request.BookOptionsRequest;
 import com.notfound.bookservice.model.dto.request.BookSortRequest;
+import com.notfound.bookservice.model.dto.request.CreateAuthorRequest;
 import com.notfound.bookservice.model.dto.request.CreateBookRequest;
+import com.notfound.bookservice.model.dto.request.CreateCategoryRequest;
 import com.notfound.bookservice.model.dto.request.ReduceStockRequest;
 import com.notfound.bookservice.model.dto.request.UpdateBookRequest;
 import com.notfound.bookservice.model.dto.response.AuthorResponse;
@@ -40,5 +42,10 @@ public interface BookService {
     List<BatchBookDetailItemResponse> getBatchBookDetails(List<UUID> bookIds);
     void reduceStock(ReduceStockRequest request);
     List<CategoryResponse> getCategories();
+
+    CategoryResponse createCategory(CreateCategoryRequest request);
+
     List<AuthorResponse> getAuthors();
+
+    AuthorResponse createAuthor(CreateAuthorRequest request);
 }
