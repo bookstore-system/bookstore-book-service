@@ -29,6 +29,6 @@ public class AuthorController {
     @PostMapping
     public ResponseEntity<ApiResponse<AuthorResponse>> createAuthor(
             @Valid @RequestBody CreateAuthorRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(bookService.createAuthor(request)));
+        return ResponseEntity.status(201).body(ApiResponse.success(bookService.createAuthor(request)));
     }
 }
