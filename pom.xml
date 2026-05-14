@@ -29,8 +29,6 @@
     <properties>
         <java.version>21</java.version>
         <spring-cloud.version>2025.1.1</spring-cloud.version>
-        <!-- Tránh lỗi "Unable to find a single main class" khi target/ còn class cũ (package hamtech) sau khi đổi sang com.notfound -->
-        <start-class>com.notfound.bookservice.BookstoreBookServiceApplication</start-class>
     </properties>
     <dependencies>
         <dependency>
