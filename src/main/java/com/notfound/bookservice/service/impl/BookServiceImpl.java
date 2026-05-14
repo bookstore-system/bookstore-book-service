@@ -4,7 +4,9 @@ import com.notfound.bookservice.exception.ResourceNotFoundException;
 import com.notfound.bookservice.model.dto.request.BookFilterRequest;
 import com.notfound.bookservice.model.dto.request.BookOptionsRequest;
 import com.notfound.bookservice.model.dto.request.BookSortRequest;
+import com.notfound.bookservice.model.dto.request.CreateAuthorRequest;
 import com.notfound.bookservice.model.dto.request.CreateBookRequest;
+import com.notfound.bookservice.model.dto.request.CreateCategoryRequest;
 import com.notfound.bookservice.model.dto.request.ReduceStockItemRequest;
 import com.notfound.bookservice.model.dto.request.ReduceStockRequest;
 import com.notfound.bookservice.model.dto.request.UpdateBookRequest;
@@ -38,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -312,15 +315,59 @@ public class BookServiceImpl implements BookService {
     @Override
     public List<CategoryResponse> getCategories() {
         return categoryRepository.findAll().stream()
+                .sorted(Comparator.comparing(Category::getName, String.CASE_INSENSITIVE_ORDER))
                 .map(category -> CategoryResponse.builder().id(category.getId()).name(category.getName()).build())
                 .toList();
     }
 
     @Override
+    @Transactional
+    public CategoryResponse createCategory(CreateCategoryRequest request) {
+        String name = request.getName().trim();
+        if (categoryRepository.existsByNameIgnoreCase(name)) {
+            throw new IllegalArgumentException("Tên thể loại đã tồn tại: " + name);
+        }
+        Category parent = null;
+        if (request.getParentCategoryId() != null) {
+            parent = categoryRepository
+                    .findById(request.getParentCategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Không tìm thấy thể loại cha với id: " + request.getParentCategoryId()));
+        }
+        String description = StringUtils.hasText(request.getDescription())
+                ? request.getDescription().trim()
+                : null;
+        Category saved = categoryRepository.save(
+                Category.builder().name(name).description(description).parentCategory(parent).build());
+        return CategoryResponse.builder().id(saved.getId()).name(saved.getName()).build();
+    }
+
+    @Override
     public List<AuthorResponse> getAuthors() {
         return authorRepository.findAll().stream()
+                .sorted(Comparator.comparing(Author::getName, String.CASE_INSENSITIVE_ORDER))
                 .map(author -> AuthorResponse.builder().id(author.getId()).name(author.getName()).build())
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public AuthorResponse createAuthor(CreateAuthorRequest request) {
+        String name = request.getName().trim();
+        if (authorRepository.existsByNameIgnoreCase(name)) {
+            throw new IllegalArgumentException("Tên tác giả đã tồn tại: " + name);
+        }
+        String biography = StringUtils.hasText(request.getBiography()) ? request.getBiography().trim() : null;
+        String nationality =
+                StringUtils.hasText(request.getNationality()) ? request.getNationality().trim() : null;
+        Author author = Author.builder()
+                .name(name)
+                .biography(biography)
+                .dateOfBirth(request.getDateOfBirth())
+                .nationality(nationality)
+                .build();
+        Author saved = authorRepository.save(author);
+        return AuthorResponse.builder().id(saved.getId()).name(saved.getName()).build();
     }
 
     private Book findBookById(UUID id) {
