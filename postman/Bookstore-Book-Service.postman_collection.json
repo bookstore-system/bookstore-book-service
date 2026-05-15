@@ -1,0 +1,886 @@
+{
+  "info": {
+    "_postman_id": "bookstore-book-service-v1",
+    "name": "Bookstore Book Service",
+    "description": "Toàn bộ API của bookstore-book-service (prefix /api/v1).\n\n**Biến collection:**\n- `baseUrl`: mặc định `http://localhost:8082` (Docker map 8082→8080). Chạy local trực tiếp thì đổi thành `http://localhost:8080`.\n- `bookId`, `authorId`, `categoryId`, `imageId`: cập nhật sau khi tạo dữ liệu.\n\n**Thứ tự test Admin Catalog:** Tạo tác giả → Tạo thể loại admin → Tạo sách admin → Upload ảnh → Các GET/PUT.\n\n**Swagger UI:** `{{baseUrl}}/swagger-ui.html`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8082", "type": "string" },
+    { "key": "bookId", "value": "3fa85f64-5717-4562-b3fc-2c963f66afa6", "type": "string" },
+    { "key": "authorId", "value": "3fa85f64-5717-4562-b3fc-2c963f66afa6", "type": "string" },
+    { "key": "categoryId", "value": "3fa85f64-5717-4562-b3fc-2c963f66afa6", "type": "string" },
+    { "key": "imageId", "value": "1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Books",
+      "description": "CRUD sách, tìm kiếm, lọc, batch, tồn kho",
+      "item": [
+        {
+          "name": "GET - Danh sách sách (phân trang)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books"],
+              "query": [
+                { "key": "page", "value": "0", "description": "Trang (mặc định 0)" },
+                { "key": "size", "value": "10", "description": "Kích thước trang (mặc định 10)" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET - Tìm kiếm sách",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/search?keyword=sach&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "search"],
+              "query": [
+                { "key": "keyword", "value": "sach", "description": "Từ khóa tìm kiếm" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET - Sách theo tùy chọn (options)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/options?minPrice=0&maxPrice=500000&option=phobien&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "options"],
+              "query": [
+                { "key": "minPrice", "value": "0", "disabled": true },
+                { "key": "maxPrice", "value": "500000", "disabled": true },
+                { "key": "minRating", "value": "0", "disabled": true },
+                { "key": "option", "value": "phobien", "description": "moinhat | phobien | thapdencao | caodenthap | danhgiacao" },
+                { "key": "danhMuc", "value": "{{categoryId}}", "disabled": true, "description": "UUID thể loại (có thể lặp nhiều param)" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET - Lọc sách (filter)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/filter?keyword=&minPrice=0&maxPrice=500000&categoryId={{categoryId}}&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "filter"],
+              "query": [
+                { "key": "keyword", "value": "", "disabled": true },
+                { "key": "minPrice", "value": "0", "disabled": true },
+                { "key": "maxPrice", "value": "500000", "disabled": true },
+                { "key": "minRating", "value": "0", "disabled": true },
+                { "key": "publishedAfter", "value": "2020-01-01", "disabled": true },
+                { "key": "categoryId", "value": "{{categoryId}}", "disabled": true },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET - Sắp xếp sách (sorted)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/sorted?sortType=date_desc&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "sorted"],
+              "query": [
+                { "key": "sortType", "value": "date_desc", "description": "price_asc|price_desc|title_asc|title_desc|date_asc|date_desc" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET - Sách bán chạy",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/best-selling?limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "best-selling"],
+              "query": [{ "key": "limit", "value": "10" }]
+            }
+          }
+        },
+        {
+          "name": "GET - Sách gợi ý",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/suggested?limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "suggested"],
+              "query": [{ "key": "limit", "value": "10" }]
+            }
+          }
+        },
+        {
+          "name": "GET - Sách theo danh mục phổ biến",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/by-popular-categories?categoryLimit=5&bookLimit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "by-popular-categories"],
+              "query": [
+                { "key": "categoryLimit", "value": "5" },
+                { "key": "bookLimit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET - Sách theo danh mục",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/by-category/{{categoryId}}?page=0&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "by-category", "{{categoryId}}"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "pageSize", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET - Chi tiết sách",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/{{bookId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "{{bookId}}"]
+            }
+          }
+        },
+        {
+          "name": "GET - Xác minh sách tồn tại (verify)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/{{bookId}}/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "{{bookId}}", "verify"]
+            }
+          }
+        },
+        {
+          "name": "GET - Kiểm tra sách exists",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/{{bookId}}/exists",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "{{bookId}}", "exists"]
+            }
+          }
+        },
+        {
+          "name": "POST - Tạo sách",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Sách mẫu Postman\",\n  \"isbn\": \"978-TEST-{{$timestamp}}\",\n  \"price\": 150000,\n  \"discountPrice\": 120000,\n  \"importPrice\": 80000,\n  \"stockQuantity\": 50,\n  \"publishDate\": \"2024-06-15\",\n  \"description\": \"Mô tả sách test\",\n  \"status\": \"AVAILABLE\",\n  \"authorIds\": [\"{{authorId}}\"],\n  \"categoryIds\": [\"{{categoryId}}\"],\n  \"imageUrls\": [\"https://res.cloudinary.com/demo/image/upload/sample.jpg\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books"]
+            }
+          }
+        },
+        {
+          "name": "PUT - Cập nhật sách",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Sách đã cập nhật\",\n  \"price\": 160000,\n  \"discountPrice\": 130000,\n  \"stockQuantity\": 45,\n  \"status\": \"AVAILABLE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/{{bookId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "{{bookId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE - Xóa sách",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/{{bookId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "{{bookId}}"]
+            }
+          }
+        },
+        {
+          "name": "POST - Batch lấy sách (ids)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{bookId}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/batch",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "batch"]
+            }
+          }
+        },
+        {
+          "name": "POST - Validate book IDs",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookIds\": [\"{{bookId}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/validate-ids",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "validate-ids"]
+            }
+          }
+        },
+        {
+          "name": "POST - Batch chi tiết sách",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookIds\": [\"{{bookId}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/batch-details",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "batch-details"]
+            }
+          }
+        },
+        {
+          "name": "POST - Giảm tồn kho (reduce-stock)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"bookId\": \"{{bookId}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/reduce-stock",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "reduce-stock"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authors",
+      "description": "Quản lý tác giả",
+      "item": [
+        {
+          "name": "GET - Danh sách tác giả (phân trang)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/authors?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "authors"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" },
+                { "key": "sortByName", "value": "asc", "disabled": true },
+                { "key": "sortByBirthYear", "value": "desc", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET - Tìm kiếm tác giả",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/authors/search?name=nguyen&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "authors", "search"],
+              "query": [
+                { "key": "name", "value": "nguyen" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET - Lọc tác giả",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/authors/filter?nationality=Việt Nam&birthYear=1990&sortByName=asc&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "authors", "filter"],
+              "query": [
+                { "key": "nationality", "value": "Việt Nam", "disabled": true },
+                { "key": "birthYear", "value": "1990", "disabled": true },
+                { "key": "sortByName", "value": "asc", "disabled": true },
+                { "key": "sortByBirthYear", "value": "desc", "disabled": true },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET - Chi tiết tác giả",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/authors/{{authorId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "authors", "{{authorId}}"]
+            }
+          }
+        },
+        {
+          "name": "POST - Tạo tác giả",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nguyễn Văn Test\",\n  \"biography\": \"Tiểu sử tác giả mẫu\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"nationality\": \"Việt Nam\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/authors",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "authors"]
+            }
+          }
+        },
+        {
+          "name": "PUT - Cập nhật tác giả",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nguyễn Văn Đã Sửa\",\n  \"biography\": \"Tiểu sử cập nhật\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"nationality\": \"Việt Nam\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/authors/{{authorId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "authors", "{{authorId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "description": "Quản lý thể loại sách",
+      "item": [
+        {
+          "name": "GET - Tất cả thể loại",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "categories"]
+            }
+          }
+        },
+        {
+          "name": "GET - Thể loại kèm sách mẫu",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/categories/with-sample-book",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "categories", "with-sample-book"]
+            }
+          }
+        },
+        {
+          "name": "GET - Thể loại phổ biến",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/categories/popular?limit=6",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "categories", "popular"],
+              "query": [{ "key": "limit", "value": "6" }]
+            }
+          }
+        },
+        {
+          "name": "GET - Thể loại phân trang",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/categories/paged?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "categories", "paged"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET - Chi tiết thể loại",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/categories/{{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "categories", "{{categoryId}}"]
+            }
+          }
+        },
+        {
+          "name": "POST - Tạo thể loại",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Thể loại Test {{$timestamp}}\",\n  \"description\": \"Mô tả thể loại mẫu\",\n  \"parentCategoryId\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "categories"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Catalog",
+      "description": "Quản trị sách, ảnh sách và danh mục (/api/v1/admin)",
+      "item": [
+        {
+          "name": "Admin - Books",
+          "item": [
+            {
+              "name": "GET - Danh sách sách admin (phân trang)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/books?page=0&size=10",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "books"],
+                  "query": [
+                    { "key": "page", "value": "0" },
+                    { "key": "size", "value": "10" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "GET - Chi tiết sách admin",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/books/{{bookId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "books", "{{bookId}}"]
+                }
+              }
+            },
+            {
+              "name": "POST - Tạo sách admin",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const json = pm.response.json();",
+                      "  if (json.result && json.result.id) {",
+                      "    pm.collectionVariables.set('bookId', json.result.id);",
+                      "  }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Sách Admin Test {{$timestamp}}\",\n  \"isbn\": \"978-ADMIN-{{$timestamp}}\",\n  \"price\": 199000,\n  \"discountPrice\": 159000,\n  \"importPrice\": 99000,\n  \"stockQuantity\": 100,\n  \"publishDate\": \"2024-01-15\",\n  \"description\": \"Sách tạo từ admin API\",\n  \"status\": \"AVAILABLE\",\n  \"authorIds\": [\"{{authorId}}\"],\n  \"categoryIds\": [\"{{categoryId}}\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/books",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "books"]
+                }
+              }
+            },
+            {
+              "name": "PUT - Cập nhật sách admin",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Sách Admin Đã Cập Nhật\",\n  \"price\": 209000,\n  \"discountPrice\": 169000,\n  \"stockQuantity\": 95,\n  \"status\": \"AVAILABLE\",\n  \"authorIds\": [\"{{authorId}}\"],\n  \"categoryIds\": [\"{{categoryId}}\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/books/{{bookId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "books", "{{bookId}}"]
+                }
+              }
+            },
+            {
+              "name": "POST - Upload ảnh sách (multipart)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const json = pm.response.json();",
+                      "  const images = json.result && json.result.images;",
+                      "  if (images && images.length > 0 && images[0].id) {",
+                      "    pm.collectionVariables.set('imageId', String(images[0].id));",
+                      "  }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "images",
+                      "type": "file",
+                      "src": [],
+                      "description": "Chọn file ảnh (có thể thêm nhiều field images)"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/books/{{bookId}}/images",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "books", "{{bookId}}", "images"]
+                },
+                "description": "Form-data: key `images` (type File). Cần cấu hình Cloudinary trong .env."
+              }
+            },
+            {
+              "name": "DELETE - Xóa ảnh sách",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/books/{{bookId}}/images/{{imageId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "books", "{{bookId}}", "images", "{{imageId}}"]
+                }
+              }
+            },
+            {
+              "name": "DELETE - Xóa sách admin",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/books/{{bookId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "books", "{{bookId}}"]
+                },
+                "description": "Chạy cuối cùng khi cần dọn dữ liệu test."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin - Categories",
+          "item": [
+            {
+              "name": "GET - Tất cả thể loại admin",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/categories",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "categories"]
+                }
+              }
+            },
+            {
+              "name": "GET - Thể loại admin phân trang",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/categories/paged?page=0&size=10",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "categories", "paged"],
+                  "query": [
+                    { "key": "page", "value": "0" },
+                    { "key": "size", "value": "10" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "GET - Chi tiết thể loại admin",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/categories/{{categoryId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "categories", "{{categoryId}}"]
+                }
+              }
+            },
+            {
+              "name": "POST - Tạo thể loại admin",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const json = pm.response.json();",
+                      "  if (json.result && json.result.id) {",
+                      "    pm.collectionVariables.set('categoryId', json.result.id);",
+                      "  }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Admin Category {{$timestamp}}\",\n  \"description\": \"Thể loại tạo từ admin API\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/categories",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "categories"]
+                }
+              }
+            },
+            {
+              "name": "PUT - Cập nhật thể loại admin",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Admin Category Updated\",\n  \"description\": \"Mô tả đã cập nhật\",\n  \"parentCategoryId\": \"\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/categories/{{categoryId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "categories", "{{categoryId}}"]
+                }
+              }
+            },
+            {
+              "name": "DELETE - Xóa thể loại admin",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/categories/{{categoryId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "categories", "{{categoryId}}"]
+                },
+                "description": "Chỉ xóa được khi thể loại không còn sách. Chạy sau khi đã xóa sách."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin - Upload",
+          "item": [
+            {
+              "name": "POST - Upload avatar (multipart)",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "image",
+                      "type": "file",
+                      "src": [],
+                      "description": "File ảnh avatar"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/upload/avatar",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "upload", "avatar"]
+                },
+                "description": "Cần Cloudinary. Trả về URL trong result."
+              }
+            },
+            {
+              "name": "POST - Upload avatar (JSON URL)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"image\": \"https://res.cloudinary.com/demo/image/upload/sample.jpg\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/upload/avatar",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "admin", "upload", "avatar"]
+                },
+                "description": "Truyền URL có sẵn (không upload Cloudinary) hoặc chuỗi base64."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Docs",
+      "description": "Swagger / OpenAPI",
+      "item": [
+        {
+          "name": "GET - Swagger UI",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/swagger-ui.html",
+              "host": ["{{baseUrl}}"],
+              "path": ["swagger-ui.html"]
+            }
+          }
+        },
+        {
+          "name": "GET - OpenAPI JSON",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/v3/api-docs",
+              "host": ["{{baseUrl}}"],
+              "path": ["v3", "api-docs"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

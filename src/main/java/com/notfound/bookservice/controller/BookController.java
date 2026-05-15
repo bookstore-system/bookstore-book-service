@@ -19,6 +19,8 @@ import com.notfound.bookservice.model.dto.response.CategoryBooksResponse;
 import com.notfound.bookservice.model.dto.response.PageResponse;
 import com.notfound.bookservice.model.dto.response.ValidateBookIdsResponse;
 import com.notfound.bookservice.service.BookService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -40,63 +42,82 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/books")
 @RequiredArgsConstructor
+@Tag(name = "Books", description = "CRUD sách, lọc, batch và tồn kho")
 public class BookController {
     private final BookService bookService;
 
     @GetMapping
+    @Operation(summary = "Lấy danh sách sách có phân trang")
     public ResponseEntity<ApiResponse<PageResponse<BookSummaryResponse>>> getBooks(
-            @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size,
-            @RequestParam(required = false) String keyword) {
-        return ResponseEntity.ok(ApiResponse.success(bookService.getBooks(page, size, keyword)));
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        return ResponseEntity.ok(ApiResponse.success(bookService.getBooks(page, size)));
+    }
+
+    @GetMapping("/search")
+    @Operation(summary = "Tìm kiếm sách theo từ khóa")
+    public ResponseEntity<ApiResponse<PageResponse<BookSummaryResponse>>> searchBooks(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        return ResponseEntity.ok(ApiResponse.success(bookService.searchBooks(keyword, page, size)));
     }
 
     @GetMapping("/options")
+    @Operation(summary = "Lấy sách theo tùy chọn lọc và sắp xếp")
     public ResponseEntity<ApiResponse<PageResponse<BookSummaryResponse>>> getBookOptions(
             @Valid @ModelAttribute BookOptionsRequest request) {
         return ResponseEntity.ok(ApiResponse.success(bookService.getAllBooksOption(request)));
     }
 
     @GetMapping("/filter")
+    @Operation(summary = "Lọc sách theo tiêu chí")
     public ResponseEntity<ApiResponse<PageResponse<BookSummaryResponse>>> filterBooks(
             @Valid @ModelAttribute BookFilterRequest request) {
         return ResponseEntity.ok(ApiResponse.success(bookService.findByFilters(request)));
     }
 
     @GetMapping("/sorted")
+    @Operation(summary = "Sắp xếp sách")
     public ResponseEntity<ApiResponse<PageResponse<BookSummaryResponse>>> getSortedBooks(
             @Valid @ModelAttribute BookSortRequest request) {
         return ResponseEntity.ok(ApiResponse.success(bookService.getSortedBooks(request)));
     }
 
     @GetMapping("/best-selling")
+    @Operation(summary = "Lấy sách bán chạy")
     public ResponseEntity<ApiResponse<List<BookSummaryResponse>>> getBestSellingBooks(
             @RequestParam(required = false, defaultValue = "10") Integer limit) {
         return ResponseEntity.ok(ApiResponse.success(bookService.getBestSellingBooks(limit)));
     }
 
     @GetMapping("/suggested")
+    @Operation(summary = "Lấy sách gợi ý")
     public ResponseEntity<ApiResponse<List<BookSummaryResponse>>> getSuggestedBooks(
             @RequestParam(required = false, defaultValue = "10") Integer limit) {
         return ResponseEntity.ok(ApiResponse.success(bookService.getSuggestedBooks(limit)));
     }
 
     @GetMapping("/by-popular-categories")
+    @Operation(summary = "Lấy sách theo danh mục phổ biến")
     public ResponseEntity<ApiResponse<List<CategoryBooksResponse>>> getBooksByPopularCategories(
             @RequestParam(required = false, defaultValue = "5") Integer categoryLimit,
             @RequestParam(required = false, defaultValue = "5") Integer bookLimit) {
-        return ResponseEntity.ok(ApiResponse.success(bookService.getBooksByPopularCategories(categoryLimit, bookLimit)));
+        return ResponseEntity.ok(
+                ApiResponse.success(bookService.getBooksByPopularCategories(categoryLimit, bookLimit)));
     }
 
     @GetMapping("/by-category/{categoryId}")
+    @Operation(summary = "Lấy sách theo danh mục")
     public ResponseEntity<ApiResponse<PageResponse<BookSummaryResponse>>> getBooksByCategory(
             @PathVariable UUID categoryId,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false, defaultValue = "10") Integer pageSize) {
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
         return ResponseEntity.ok(ApiResponse.success(bookService.getBooksByCategory(categoryId, page, pageSize)));
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Lấy chi tiết sách")
     public ResponseEntity<ApiResponse<BookResponse>> getBookById(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(bookService.getBookById(id)));
     }

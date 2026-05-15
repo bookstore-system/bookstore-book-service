@@ -11,7 +11,11 @@ public class BookSummaryResponse {
     private String title;
     private Double price;
     private Double discountPrice;
-    private Integer stockQuantity;
     private String mainImageUrl;
+    private Double averageRating;
+    private Integer reviewCount;
+    private Integer stockQuantity;
+    private String status;
     private List<String> authorNames;
+    private List<String> categoryId;
 }
