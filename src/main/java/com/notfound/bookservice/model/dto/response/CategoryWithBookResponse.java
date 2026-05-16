@@ -3,17 +3,13 @@ package com.notfound.bookservice.model.dto.response;
 import lombok.Builder;
 import lombok.Data;
 
-import java.util.List;
 import java.util.UUID;
 
 @Data
 @Builder
-public class CategoryResponse {
+public class CategoryWithBookResponse {
     private UUID id;
     private String name;
     private String description;
-    private UUID parentCategoryId;
-    private String parentCategoryName;
-    private List<String> subCategories;
-    private Integer totalBooks;
+    private BookResponse sampleBook;
 }

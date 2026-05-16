@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -16,6 +17,7 @@ import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.UuidGenerator;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -35,7 +37,21 @@ public class BookImage {
     @Column(nullable = false)
     String url;
 
+    Integer priority;
+
+    LocalDateTime uploadedAt;
+
     @ManyToOne
     @JoinColumn(name = "book_id")
     Book book;
+
+    @PrePersist
+    void onCreate() {
+        if (uploadedAt == null) {
+            uploadedAt = LocalDateTime.now();
+        }
+        if (priority == null) {
+            priority = 0;
+        }
+    }
 }

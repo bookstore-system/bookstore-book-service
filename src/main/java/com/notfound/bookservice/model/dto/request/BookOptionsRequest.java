@@ -7,6 +7,8 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Data;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +25,10 @@ public class BookOptionsRequest {
     private Double minRating;
 
     private String option = "phobien";
+
+    /** Mã thể loại (UUID dạng string), tương thích Swagger `danhMuc`. */
+    private String[] danhMuc;
+
     private List<UUID> categoryIds;
 
     @Min(0)
@@ -38,5 +44,15 @@ public class BookOptionsRequest {
             return maxPrice >= minPrice;
         }
         return true;
+    }
+
+    public List<UUID> resolveCategoryIds() {
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            return categoryIds;
+        }
+        if (danhMuc == null || danhMuc.length == 0) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(danhMuc).map(UUID::fromString).toList();
     }
 }
