@@ -1,6 +1,9 @@
 gemini:
   api:
     key: ${GEMINI_API_KEY:}
+  embedding:
+    model: ${GEMINI_EMBEDDING_MODEL:gemini-embedding-001}
+    output-dimensionality: ${GEMINI_EMBEDDING_DIMENSION:768}
 
 qdrant:
   url: ${QDRANT_URL:}

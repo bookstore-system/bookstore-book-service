@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
@@ -34,6 +35,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Admin Catalog", description = "Quản trị sách, ảnh sách và danh mục")
 public class AdminCatalogController {
 

@@ -15,6 +15,7 @@ import com.notfound.bookservice.repository.AuthorRepository;
 import com.notfound.bookservice.repository.BookImageRepository;
 import com.notfound.bookservice.repository.BookRepository;
 import com.notfound.bookservice.repository.CategoryRepository;
+import com.notfound.bookservice.security.AdminAuthorizationChecker;
 import com.notfound.bookservice.service.AdminCatalogService;
 import com.notfound.bookservice.service.GeminiService;
 import com.notfound.bookservice.service.ImageService;
@@ -49,10 +50,12 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     private final ImageService imageService;
     private final GeminiService geminiService;
     private final QdrantService qdrantService;
+    private final AdminAuthorizationChecker adminAuthorizationChecker;
 
     @Override
     @Transactional
     public BookFullDetailResponse createBook(CreateBookRequest request) {
+        adminAuthorizationChecker.requireAdmin();
         validateIsbnUnique(request.getIsbn(), null);
         Book book = Book.builder()
                 .title(request.getTitle().trim())
@@ -74,6 +77,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     @Override
     @Transactional
     public BookFullDetailResponse updateBook(UUID bookId, UpdateBookRequest request) {
+        adminAuthorizationChecker.requireAdmin();
         Book book = findBook(bookId);
         if (StringUtils.hasText(request.getIsbn())) {
             validateIsbnUnique(request.getIsbn(), bookId);
@@ -96,6 +100,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     @Override
     @Transactional
     public String deleteBook(UUID bookId) {
+        adminAuthorizationChecker.requireAdmin();
         Book book = findBook(bookId);
         List<BookImage> images = bookImageRepository.findByBook_IdOrderByPriorityAscUploadedAtAsc(bookId);
         for (BookImage image : images) {
@@ -110,18 +115,21 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     @Override
     @Transactional(readOnly = true)
     public BookFullDetailResponse getBookDetail(UUID bookId) {
+        adminAuthorizationChecker.requireAdmin();
         return mapToBookFullDetail(findBook(bookId));
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<BookFullDetailResponse> getAllBooks(Pageable pageable) {
+        adminAuthorizationChecker.requireAdmin();
         return bookRepository.findAll(pageable).map(this::mapToBookFullDetail);
     }
 
     @Override
     @Transactional
     public BookFullDetailResponse uploadBookImages(UUID bookId, List<MultipartFile> images) {
+        adminAuthorizationChecker.requireAdmin();
         Book book = findBook(bookId);
         if (images == null || images.isEmpty()) {
             throw new IllegalArgumentException("Danh sách ảnh không được rỗng");
@@ -142,6 +150,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     @Override
     @Transactional
     public String deleteBookImage(UUID bookId, UUID imageId) {
+        adminAuthorizationChecker.requireAdmin();
         BookImage image = bookImageRepository
                 .findByIdAndBook_Id(imageId, bookId)
                 .orElseThrow(() -> new ResourceNotFoundException("Image not found with id: " + imageId));
@@ -155,6 +164,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     @Override
     @Transactional
     public CategoryResponse createCategory(AdminCreateCategoryRequest request) {
+        adminAuthorizationChecker.requireAdmin();
         String name = request.getName().trim();
         if (categoryRepository.existsByNameIgnoreCase(name)) {
             throw new IllegalArgumentException("Tên thể loại đã tồn tại: " + name);
@@ -169,6 +179,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     @Override
     @Transactional
     public CategoryResponse updateCategory(UUID categoryId, UpdateCategoryRequest request) {
+        adminAuthorizationChecker.requireAdmin();
         Category category = findCategory(categoryId);
         if (StringUtils.hasText(request.getName())) {
             String name = request.getName().trim();
@@ -202,6 +213,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     @Override
     @Transactional
     public String deleteCategory(UUID categoryId) {
+        adminAuthorizationChecker.requireAdmin();
         if (!categoryRepository.existsById(categoryId)) {
             throw new ResourceNotFoundException("Category not found with id: " + categoryId);
         }
@@ -215,6 +227,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     @Override
     @Transactional(readOnly = true)
     public CategoryResponse getCategory(UUID categoryId) {
+        adminAuthorizationChecker.requireAdmin();
         Category category = categoryRepository
                 .findDetailedById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
@@ -224,6 +237,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     @Override
     @Transactional(readOnly = true)
     public List<CategoryResponse> getAllCategories() {
+        adminAuthorizationChecker.requireAdmin();
         Map<UUID, Long> bookCounts = loadBookCountsPerCategory();
         return categoryRepository.findAll().stream()
                 .sorted(Comparator.comparing(Category::getName, String.CASE_INSENSITIVE_ORDER))
@@ -234,12 +248,14 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     @Override
     @Transactional(readOnly = true)
     public Page<CategoryResponse> getAllCategories(Pageable pageable) {
+        adminAuthorizationChecker.requireAdmin();
         Map<UUID, Long> bookCounts = loadBookCountsPerCategory();
         return categoryRepository.findAll(pageable).map(category -> mapToCategoryResponse(category, bookCounts));
     }
 
     @Override
     public String uploadAvatar(MultipartFile image) {
+        adminAuthorizationChecker.requireAdmin();
         if (image == null || image.isEmpty()) {
             throw new IllegalArgumentException("File ảnh không hợp lệ");
         }
@@ -249,6 +265,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
 
     @Override
     public String uploadAvatarFromRequest(String imagePayload) {
+        adminAuthorizationChecker.requireAdmin();
         if (!StringUtils.hasText(imagePayload)) {
             throw new IllegalArgumentException("image không được để trống");
         }

@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +20,12 @@ public class GeminiServiceImpl implements GeminiService {
     @Value("${gemini.api.key:}")
     private String apiKey;
 
+    @Value("${gemini.embedding.model:gemini-embedding-001}")
+    private String embeddingModel;
+
+    @Value("${gemini.embedding.output-dimensionality:768}")
+    private int outputDimensionality;
+
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Override
@@ -27,12 +34,16 @@ public class GeminiServiceImpl implements GeminiService {
             throw new IllegalStateException("Gemini API key is not configured (GEMINI_API_KEY)");
         }
 
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent?key="
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/"
+                + embeddingModel
+                + ":embedContent?key="
                 + apiKey;
 
-        Map<String, Object> body = Map.of(
-                "content", Map.of(
-                        "parts", List.of(Map.of("text", text))));
+        Map<String, Object> body = new HashMap<>();
+        body.put("content", Map.of("parts", List.of(Map.of("text", text))));
+        if (outputDimensionality > 0) {
+            body.put("outputDimensionality", outputDimensionality);
+        }
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

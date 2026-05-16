@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -64,12 +65,14 @@ public class AuthorController {
 
     @PostMapping
     @Operation(summary = "Tạo tác giả mới")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AuthorResponse>> createAuthor(@Valid @RequestBody AuthorRequest request) {
         return ResponseEntity.ok(ApiResponse.success(authorService.createAuthor(request)));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật tác giả")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AuthorResponse>> updateAuthor(
             @PathVariable UUID id, @Valid @RequestBody AuthorRequest request) {
         return ResponseEntity.ok(ApiResponse.success(authorService.updateAuthor(id, request)));

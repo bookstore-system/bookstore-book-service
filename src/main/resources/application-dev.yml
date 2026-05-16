@@ -1,3 +1,7 @@
+app:
+  jwt:
+    keys-dir: ${APP_JWT_KEYS_DIR:../Plan-And-Document/key}
+
 cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME:}
   api-key: ${CLOUDINARY_API_KEY:}
@@ -6,6 +10,9 @@ cloudinary:
 gemini:
   api:
     key: ${GEMINI_API_KEY:}
+  embedding:
+    model: ${GEMINI_EMBEDDING_MODEL:gemini-embedding-001}
+    output-dimensionality: ${GEMINI_EMBEDDING_DIMENSION:768}
 
 qdrant:
   url: ${QDRANT_URL:}

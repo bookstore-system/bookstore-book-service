@@ -3,6 +3,7 @@ package com.notfound.bookservice.exception;
 import com.notfound.bookservice.model.dto.response.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -24,6 +25,16 @@ public class GlobalExceptionHandler {
                 .orElse("Validation error");
         return ResponseEntity.badRequest()
                 .body(ApiResponse.<Void>builder().code(400).message(message).data(null).build());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.<Void>builder()
+                        .code(403)
+                        .message(ex.getMessage() != null ? ex.getMessage() : "Access denied")
+                        .data(null)
+                        .build());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
