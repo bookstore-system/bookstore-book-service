@@ -4,13 +4,11 @@ import com.notfound.bookservice.exception.ResourceNotFoundException;
 import com.notfound.bookservice.model.dto.request.BookFilterRequest;
 import com.notfound.bookservice.model.dto.request.BookOptionsRequest;
 import com.notfound.bookservice.model.dto.request.BookSortRequest;
-import com.notfound.bookservice.model.dto.request.CreateAuthorRequest;
 import com.notfound.bookservice.model.dto.request.CreateBookRequest;
 import com.notfound.bookservice.model.dto.request.CreateCategoryRequest;
 import com.notfound.bookservice.model.dto.request.ReduceStockItemRequest;
 import com.notfound.bookservice.model.dto.request.ReduceStockRequest;
 import com.notfound.bookservice.model.dto.request.UpdateBookRequest;
-import com.notfound.bookservice.model.dto.response.AuthorResponse;
 import com.notfound.bookservice.model.dto.response.BatchBookDetailItemResponse;
 import com.notfound.bookservice.model.dto.response.BatchBookItemResponse;
 import com.notfound.bookservice.model.dto.response.BatchBooksResponse;
@@ -19,6 +17,7 @@ import com.notfound.bookservice.model.dto.response.BookExistsResponse;
 import com.notfound.bookservice.model.dto.response.BookSummaryResponse;
 import com.notfound.bookservice.model.dto.response.CategoryBooksResponse;
 import com.notfound.bookservice.model.dto.response.CategoryResponse;
+import com.notfound.bookservice.model.dto.response.CategoryWithBookResponse;
 import com.notfound.bookservice.model.dto.response.PageResponse;
 import com.notfound.bookservice.model.dto.response.ValidateBookIdsResponse;
 import com.notfound.bookservice.model.entity.Author;
@@ -58,23 +57,18 @@ public class BookServiceImpl implements BookService {
     private final BookMapper bookMapper;
 
     @Override
-    public PageResponse<BookSummaryResponse> getBooks(Integer page, Integer size, String keyword) {
-        int pageNumber = page == null || page < 0 ? 0 : page;
-        int pageSize = size == null || size <= 0 ? 10 : size;
-        PageRequest pageable = PageRequest.of(pageNumber, pageSize);
+    @Transactional(readOnly = true)
+    public PageResponse<BookSummaryResponse> getBooks(Integer page, Integer size) {
+        Pageable pageable = PageRequest.of(defaultPage(page), defaultSize(size));
+        return toPageResponse(bookRepository.findAll(pageable));
+    }
 
-        Page<Book> bookPage;
-        if (StringUtils.hasText(keyword)) {
-            bookPage = bookRepository.searchBooks(keyword.trim(), pageable);
-        } else {
-            bookPage = bookRepository.findAll(pageable);
-        }
-        return PageResponse.<BookSummaryResponse>builder()
-                .content(bookPage.getContent().stream().map(bookMapper::toBookSummaryResponse).toList())
-                .currentPage(bookPage.getNumber())
-                .totalPages(bookPage.getTotalPages())
-                .totalElements(bookPage.getTotalElements())
-                .build();
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BookSummaryResponse> searchBooks(String keyword, Integer page, Integer size) {
+        Pageable pageable = PageRequest.of(defaultPage(page), defaultSize(size));
+        String searchKeyword = StringUtils.hasText(keyword) ? keyword.trim() : "";
+        return toPageResponse(bookRepository.searchBooks(searchKeyword, pageable));
     }
 
     @Override
@@ -87,7 +81,8 @@ public class BookServiceImpl implements BookService {
         };
 
         Pageable pageable = PageRequest.of(defaultPage(request.getPage()), defaultSize(request.getSize()), sort);
-        UUID categoryId = (request.getCategoryIds() == null || request.getCategoryIds().isEmpty()) ? null : request.getCategoryIds().get(0);
+        List<UUID> resolvedCategoryIds = request.resolveCategoryIds();
+        UUID categoryId = resolvedCategoryIds.isEmpty() ? null : resolvedCategoryIds.get(0);
         Page<Book> page = bookRepository.findByFilters(null, request.getMinPrice(), request.getMaxPrice(), null, categoryId, pageable);
         return toPageResponse(page);
     }
@@ -134,18 +129,16 @@ public class BookServiceImpl implements BookService {
         int safeCategoryLimit = (categoryLimit == null || categoryLimit < 1) ? 5 : Math.min(categoryLimit, 20);
         int safeBookLimit = (bookLimit == null || bookLimit < 1) ? 5 : Math.min(bookLimit, 20);
         List<Category> categories = categoryRepository.findPopularCategories(PageRequest.of(0, safeCategoryLimit));
+        Map<UUID, Long> bookCounts = loadBookCountsPerCategory();
 
         return categories.stream().map(category -> {
-            List<BookSummaryResponse> books = bookRepository.findByCategoryId(category.getId(), PageRequest.of(0, safeBookLimit))
+            List<BookSummaryResponse> books = bookRepository
+                    .findByCategoryId(category.getId(), PageRequest.of(0, safeBookLimit))
                     .getContent()
                     .stream()
                     .map(bookMapper::toBookSummaryResponse)
                     .toList();
-            CategoryResponse categoryResponse = CategoryResponse.builder()
-                    .id(category.getId())
-                    .name(category.getName())
-                    .build();
-            return new CategoryBooksResponse(categoryResponse, books);
+            return new CategoryBooksResponse(mapToCategoryResponse(category, bookCounts), books);
         }).toList();
     }
 
@@ -313,10 +306,62 @@ public class BookServiceImpl implements BookService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<CategoryResponse> getCategories() {
+        Map<UUID, Long> bookCounts = loadBookCountsPerCategory();
         return categoryRepository.findAll().stream()
                 .sorted(Comparator.comparing(Category::getName, String.CASE_INSENSITIVE_ORDER))
-                .map(category -> CategoryResponse.builder().id(category.getId()).name(category.getName()).build())
+                .map(category -> mapToCategoryResponse(category, bookCounts))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CategoryResponse getCategoryById(UUID categoryId) {
+        Category category = categoryRepository
+                .findDetailedById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
+        Map<UUID, Long> bookCounts = loadBookCountsPerCategory();
+        return mapToCategoryResponse(category, bookCounts);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<CategoryResponse> getCategoriesPaged(int page, int size) {
+        Pageable pageable = PageRequest.of(defaultPage(page), defaultSize(size));
+        Map<UUID, Long> bookCounts = loadBookCountsPerCategory();
+        return categoryRepository.findAll(pageable).map(category -> mapToCategoryResponse(category, bookCounts));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoryResponse> getPopularCategories(Integer limit) {
+        int safeLimit = (limit == null || limit < 1) ? 5 : Math.min(limit, 50);
+        Map<UUID, Long> bookCounts = loadBookCountsPerCategory();
+        return categoryRepository.findPopularCategories(PageRequest.of(0, safeLimit)).stream()
+                .map(category -> mapToCategoryResponse(category, bookCounts))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoryWithBookResponse> getCategoriesWithSampleBook() {
+        List<Category> categories = categoryRepository.findAllWithHierarchy();
+        return categories.stream()
+                .sorted(Comparator.comparing(Category::getName, String.CASE_INSENSITIVE_ORDER))
+                .map(category -> {
+                    CategoryWithBookResponse.CategoryWithBookResponseBuilder builder =
+                            CategoryWithBookResponse.builder()
+                                    .id(category.getId())
+                                    .name(category.getName())
+                                    .description(category.getDescription());
+                    bookRepository
+                            .findByCategoryId(category.getId(), PageRequest.of(0, 1))
+                            .stream()
+                            .findFirst()
+                            .ifPresent(book -> builder.sampleBook(bookMapper.toBookResponse(book)));
+                    return builder.build();
+                })
                 .toList();
     }
 
@@ -339,35 +384,7 @@ public class BookServiceImpl implements BookService {
                 : null;
         Category saved = categoryRepository.save(
                 Category.builder().name(name).description(description).parentCategory(parent).build());
-        return CategoryResponse.builder().id(saved.getId()).name(saved.getName()).build();
-    }
-
-    @Override
-    public List<AuthorResponse> getAuthors() {
-        return authorRepository.findAll().stream()
-                .sorted(Comparator.comparing(Author::getName, String.CASE_INSENSITIVE_ORDER))
-                .map(author -> AuthorResponse.builder().id(author.getId()).name(author.getName()).build())
-                .toList();
-    }
-
-    @Override
-    @Transactional
-    public AuthorResponse createAuthor(CreateAuthorRequest request) {
-        String name = request.getName().trim();
-        if (authorRepository.existsByNameIgnoreCase(name)) {
-            throw new IllegalArgumentException("Tên tác giả đã tồn tại: " + name);
-        }
-        String biography = StringUtils.hasText(request.getBiography()) ? request.getBiography().trim() : null;
-        String nationality =
-                StringUtils.hasText(request.getNationality()) ? request.getNationality().trim() : null;
-        Author author = Author.builder()
-                .name(name)
-                .biography(biography)
-                .dateOfBirth(request.getDateOfBirth())
-                .nationality(nationality)
-                .build();
-        Author saved = authorRepository.save(author);
-        return AuthorResponse.builder().id(saved.getId()).name(saved.getName()).build();
+        return mapToCategoryResponse(saved, loadBookCountsPerCategory());
     }
 
     private Book findBookById(UUID id) {
@@ -416,6 +433,35 @@ public class BookServiceImpl implements BookService {
             return null;
         }
         return book.getImages().get(0).getUrl();
+    }
+
+    private Map<UUID, Long> loadBookCountsPerCategory() {
+        return categoryRepository.countBooksPerCategory().stream()
+                .collect(Collectors.toMap(
+                        CategoryRepository.CategoryBookCountProjection::getCategoryId,
+                        CategoryRepository.CategoryBookCountProjection::getBookCount));
+    }
+
+    private CategoryResponse mapToCategoryResponse(Category category, Map<UUID, Long> bookCounts) {
+        CategoryResponse.CategoryResponseBuilder builder = CategoryResponse.builder()
+                .id(category.getId())
+                .name(category.getName())
+                .description(category.getDescription())
+                .totalBooks(bookCounts.getOrDefault(category.getId(), 0L).intValue());
+
+        if (category.getParentCategory() != null) {
+            builder.parentCategoryId(category.getParentCategory().getId())
+                    .parentCategoryName(category.getParentCategory().getName());
+        }
+
+        if (category.getSubCategories() != null && !category.getSubCategories().isEmpty()) {
+            builder.subCategories(category.getSubCategories().stream()
+                    .map(Category::getName)
+                    .sorted(String.CASE_INSENSITIVE_ORDER)
+                    .toList());
+        }
+
+        return builder.build();
     }
 
     private PageResponse<BookSummaryResponse> toPageResponse(Page<Book> page) {

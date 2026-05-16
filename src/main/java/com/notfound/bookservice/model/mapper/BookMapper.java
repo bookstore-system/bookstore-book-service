@@ -14,14 +14,23 @@ import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface BookMapper {
+
+    @Mapping(target = "id", expression = "java(book.getId() != null ? book.getId().toString() : null)")
     @Mapping(target = "status", expression = "java(book.getStatus().name())")
     @Mapping(target = "authorNames", source = "authors", qualifiedByName = "authorNames")
     @Mapping(target = "categoryNames", source = "categories", qualifiedByName = "categoryNames")
+    @Mapping(target = "categoryId", source = "categories", qualifiedByName = "categoryIdStrings")
     @Mapping(target = "imageUrls", source = "images", qualifiedByName = "imageUrls")
+    @Mapping(target = "averageRating", constant = "0.0")
+    @Mapping(target = "reviewCount", constant = "0")
     BookResponse toBookResponse(Book book);
 
     @Mapping(target = "mainImageUrl", source = "images", qualifiedByName = "mainImageUrl")
     @Mapping(target = "authorNames", source = "authors", qualifiedByName = "authorNames")
+    @Mapping(target = "categoryId", source = "categories", qualifiedByName = "categoryIdStrings")
+    @Mapping(target = "status", expression = "java(book.getStatus().name())")
+    @Mapping(target = "averageRating", constant = "0.0")
+    @Mapping(target = "reviewCount", constant = "0")
     BookSummaryResponse toBookSummaryResponse(Book book);
 
     @Named("authorNames")
@@ -38,6 +47,16 @@ public interface BookMapper {
             return Collections.emptyList();
         }
         return categories.stream().map(com.notfound.bookservice.model.entity.Category::getName).toList();
+    }
+
+    @Named("categoryIdStrings")
+    default List<String> categoryIdStrings(List<com.notfound.bookservice.model.entity.Category> categories) {
+        if (categories == null) {
+            return Collections.emptyList();
+        }
+        return categories.stream()
+                .map(category -> category.getId().toString())
+                .toList();
     }
 
     @Named("imageUrls")
