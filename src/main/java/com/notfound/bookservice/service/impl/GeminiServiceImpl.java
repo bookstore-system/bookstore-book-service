@@ -1,13 +1,11 @@
 package com.notfound.bookservice.service.impl;
 
+import com.notfound.bookservice.client.GeminiEmbeddingClient;
 import com.notfound.bookservice.service.GeminiService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.List;
@@ -15,7 +13,10 @@ import java.util.Map;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class GeminiServiceImpl implements GeminiService {
+
+    private final GeminiEmbeddingClient geminiEmbeddingClient;
 
     @Value("${gemini.api.key:}")
     private String apiKey;
@@ -26,18 +27,11 @@ public class GeminiServiceImpl implements GeminiService {
     @Value("${gemini.embedding.output-dimensionality:768}")
     private int outputDimensionality;
 
-    private final RestTemplate restTemplate = new RestTemplate();
-
     @Override
     public double[] embed(String text) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("Gemini API key is not configured (GEMINI_API_KEY)");
         }
-
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/"
-                + embeddingModel
-                + ":embedContent?key="
-                + apiKey;
 
         Map<String, Object> body = new HashMap<>();
         body.put("content", Map.of("parts", List.of(Map.of("text", text))));
@@ -45,13 +39,8 @@ public class GeminiServiceImpl implements GeminiService {
             body.put("outputDimensionality", outputDimensionality);
         }
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-
         try {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
+            Map<String, Object> response = geminiEmbeddingClient.embedContent(embeddingModel, apiKey, body);
 
             if (response == null) {
                 throw new RuntimeException("Gemini API returned null response");

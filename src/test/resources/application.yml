@@ -20,3 +20,13 @@ cloudinary:
   cloud-name: test-cloud
   api-key: test-key
   api-secret: test-secret
+
+clients:
+  gemini:
+    url: https://generativelanguage.googleapis.com
+  qdrant:
+    url: http://localhost:6333
+
+qdrant:
+  api:
+    key: test-qdrant-key

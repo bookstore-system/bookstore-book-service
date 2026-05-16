@@ -3,6 +3,13 @@ spring:
     name: bookstore-book-service
   profiles:
     active: dev
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connect-timeout: 5000
+            read-timeout: 15000
 server:
   port: 8080
 

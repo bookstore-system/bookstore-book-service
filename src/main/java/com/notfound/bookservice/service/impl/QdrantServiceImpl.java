@@ -1,18 +1,14 @@
 package com.notfound.bookservice.service.impl;
 
+import com.notfound.bookservice.client.QdrantClient;
 import com.notfound.bookservice.model.entity.Author;
 import com.notfound.bookservice.model.entity.Book;
 import com.notfound.bookservice.model.entity.Category;
 import com.notfound.bookservice.service.QdrantService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,11 +19,12 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class QdrantServiceImpl implements QdrantService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final QdrantClient qdrantClient;
 
-    @Value("${qdrant.url:}")
+    @Value("${clients.qdrant.url:}")
     private String qdrantUrl;
 
     @Value("${qdrant.api.key:}")
@@ -35,15 +32,7 @@ public class QdrantServiceImpl implements QdrantService {
 
     @Override
     public void insertBookVector(UUID bookId, double[] vector, Book book) {
-        if (qdrantUrl == null || qdrantUrl.isBlank() || apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException("Qdrant is not configured (QDRANT_URL, QDRANT_API_KEY)");
-        }
-
-        String url = qdrantUrl + "/collections/books/points?wait=true";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("api-key", apiKey);
+        assertQdrantConfigured();
 
         List<String> authorNames = book.getAuthors() == null
                 ? List.of()
@@ -83,10 +72,8 @@ public class QdrantServiceImpl implements QdrantService {
         Map<String, Object> body = new HashMap<>();
         body.put("points", List.of(point));
 
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-
         try {
-            restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
+            qdrantClient.upsertPoints(true, body);
         } catch (Exception e) {
             throw new RuntimeException("Failed to insert vector to Qdrant", e);
         }
@@ -94,33 +81,25 @@ public class QdrantServiceImpl implements QdrantService {
 
     @Override
     public List<String> searchBookIds(double[] queryVector, int limit) {
-        if (qdrantUrl == null || qdrantUrl.isBlank() || apiKey == null || apiKey.isBlank()) {
+        if (!isQdrantConfigured()) {
             log.warn("Qdrant is not configured, skipping vector search");
             return List.of();
         }
-
-        String url = qdrantUrl + "/collections/books/points/search";
 
         Map<String, Object> body = new HashMap<>();
         body.put("vector", queryVector);
         body.put("limit", limit);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("api-key", apiKey);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-
         try {
-            ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+            Map<String, Object> response = qdrantClient.searchPoints(body);
 
-            if (response.getBody() == null || !response.getBody().containsKey("result")) {
+            if (response == null || !response.containsKey("result")) {
                 log.warn("Empty search result from Qdrant");
                 return List.of();
             }
 
             @SuppressWarnings("unchecked")
-            List<Map<String, Object>> result = (List<Map<String, Object>>) response.getBody().get("result");
+            List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
 
             return result.stream()
                     .map(item -> item.get("id").toString())
@@ -133,25 +112,28 @@ public class QdrantServiceImpl implements QdrantService {
 
     @Override
     public void deleteBookVector(UUID bookId) {
-        if (qdrantUrl == null || qdrantUrl.isBlank() || apiKey == null || apiKey.isBlank()) {
+        if (!isQdrantConfigured()) {
             log.warn("Qdrant is not configured, skipping vector delete for book {}", bookId);
             return;
         }
 
-        String url = qdrantUrl + "/collections/books/points/delete?wait=true";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("api-key", apiKey);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
         Map<String, Object> body = Map.of("points", List.of(bookId.toString()));
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
 
         try {
-            restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+            qdrantClient.deletePoints(true, body);
             log.info("Deleted vector from Qdrant for book: {}", bookId);
         } catch (Exception e) {
             throw new RuntimeException("Failed to delete vector from Qdrant", e);
         }
+    }
+
+    private void assertQdrantConfigured() {
+        if (!isQdrantConfigured()) {
+            throw new IllegalStateException("Qdrant is not configured (QDRANT_URL, QDRANT_API_KEY)");
+        }
+    }
+
+    private boolean isQdrantConfigured() {
+        return qdrantUrl != null && !qdrantUrl.isBlank() && apiKey != null && !apiKey.isBlank();
     }
 }

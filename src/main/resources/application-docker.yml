@@ -19,6 +19,12 @@ qdrant:
   api:
     key: ${QDRANT_API_KEY:}
 
+clients:
+  gemini:
+    url: https://generativelanguage.googleapis.com
+  qdrant:
+    url: ${QDRANT_URL:}
+
 spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://book-db:3306/bookstore_book?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
