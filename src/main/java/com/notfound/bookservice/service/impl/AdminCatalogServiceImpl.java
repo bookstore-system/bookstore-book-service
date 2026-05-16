@@ -94,7 +94,9 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
         }
         if (request.getStatus() != null) book.setStatus(parseStatus(request.getStatus()));
         applyRelations(book, request.getAuthorIds(), request.getCategoryIds(), request.getImageUrls());
-        return mapToBookFullDetail(bookRepository.save(book));
+        book = bookRepository.save(book);
+        indexBookInQdrant(book);
+        return mapToBookFullDetail(book);
     }
 
     @Override
@@ -291,8 +293,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     }
 
     private void indexBookInQdrant(Book book) {
-        String embeddingText = book.getTitle() + ". "
-                + (book.getDescription() != null ? book.getDescription() : "");
+        String embeddingText = buildEmbeddingText(book);
         log.info("Creating embedding for book: {}", book.getId());
 
         try {
@@ -302,6 +303,20 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
         } catch (Exception e) {
             log.error("Failed to index book {} in Qdrant: {}", book.getId(), e.getMessage(), e);
         }
+    }
+
+    private String buildEmbeddingText(Book book) {
+        StringBuilder text = new StringBuilder(book.getTitle());
+        if (book.getCategories() != null && !book.getCategories().isEmpty()) {
+            String categoryNames = book.getCategories().stream()
+                    .map(Category::getName)
+                    .collect(Collectors.joining(", "));
+            text.append(". ").append(categoryNames);
+        }
+        if (book.getDescription() != null && !book.getDescription().isBlank()) {
+            text.append(". ").append(book.getDescription());
+        }
+        return text.toString();
     }
 
     private Book findBook(UUID bookId) {

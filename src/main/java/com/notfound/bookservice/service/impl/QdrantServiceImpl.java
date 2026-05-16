@@ -2,6 +2,7 @@ package com.notfound.bookservice.service.impl;
 
 import com.notfound.bookservice.model.entity.Author;
 import com.notfound.bookservice.model.entity.Book;
+import com.notfound.bookservice.model.entity.Category;
 import com.notfound.bookservice.service.QdrantService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,10 +49,20 @@ public class QdrantServiceImpl implements QdrantService {
                 ? List.of()
                 : book.getAuthors().stream().map(Author::getName).collect(Collectors.toList());
 
+        List<String> categoryIds = book.getCategories() == null
+                ? List.of()
+                : book.getCategories().stream().map(c -> c.getId().toString()).collect(Collectors.toList());
+
+        List<String> categoryNames = book.getCategories() == null
+                ? List.of()
+                : book.getCategories().stream().map(Category::getName).collect(Collectors.toList());
+
         Map<String, Object> payload = new HashMap<>();
         payload.put("book_id", bookId.toString());
         payload.put("title", book.getTitle());
         payload.put("authors", authorNames);
+        payload.put("category_ids", categoryIds);
+        payload.put("categories", categoryNames);
         payload.put("description", book.getDescription());
         payload.put("isbn", book.getIsbn());
         payload.put("price", book.getPrice());
