@@ -29,8 +29,12 @@ import com.notfound.bookservice.repository.AuthorRepository;
 import com.notfound.bookservice.repository.BookRepository;
 import com.notfound.bookservice.repository.CategoryRepository;
 import com.notfound.bookservice.service.BookService;
+import com.notfound.bookservice.service.GeminiService;
+import com.notfound.bookservice.service.QdrantService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -43,6 +47,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -50,11 +55,14 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BookServiceImpl implements BookService {
     private final BookRepository bookRepository;
     private final AuthorRepository authorRepository;
     private final CategoryRepository categoryRepository;
     private final BookMapper bookMapper;
+    private final GeminiService geminiService;
+    private final QdrantService qdrantService;
 
     @Override
     @Transactional(readOnly = true)
@@ -67,7 +75,43 @@ public class BookServiceImpl implements BookService {
     @Transactional(readOnly = true)
     public PageResponse<BookSummaryResponse> searchBooks(String keyword, Integer page, Integer size) {
         Pageable pageable = PageRequest.of(defaultPage(page), defaultSize(size));
-        String searchKeyword = StringUtils.hasText(keyword) ? keyword.trim() : "";
+
+        if (!StringUtils.hasText(keyword)) {
+            return toPageResponse(bookRepository.findAll(pageable));
+        }
+
+        String searchKeyword = keyword.trim();
+        log.info("AI searching books with keyword: {}", searchKeyword);
+
+        try {
+            double[] queryVector = geminiService.embed(searchKeyword);
+            List<String> bookIds = qdrantService.searchBookIds(queryVector, 50);
+
+            if (!bookIds.isEmpty()) {
+                List<UUID> uuidList = bookIds.stream().map(UUID::fromString).toList();
+                List<Book> dbBooks = bookRepository.findAllById(uuidList);
+                Map<UUID, Book> bookMap = dbBooks.stream()
+                        .collect(Collectors.toMap(Book::getId, Function.identity()));
+
+                List<Book> orderedBooks = uuidList.stream()
+                        .map(bookMap::get)
+                        .filter(Objects::nonNull)
+                        .toList();
+
+                int start = (int) pageable.getOffset();
+                int end = Math.min(start + pageable.getPageSize(), orderedBooks.size());
+                List<Book> pagedBooks = start >= orderedBooks.size()
+                        ? List.of()
+                        : orderedBooks.subList(start, end);
+
+                Page<Book> bookPage = new PageImpl<>(pagedBooks, pageable, orderedBooks.size());
+                return toPageResponse(bookPage);
+            }
+        } catch (Exception e) {
+            log.warn("AI vector search failed, falling back to database search: {}", e.getMessage());
+        }
+
+        log.warn("AI search empty or unavailable, using database search");
         return toPageResponse(bookRepository.searchBooks(searchKeyword, pageable));
     }
 

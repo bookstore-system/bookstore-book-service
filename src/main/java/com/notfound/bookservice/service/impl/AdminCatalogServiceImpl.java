@@ -16,8 +16,11 @@ import com.notfound.bookservice.repository.BookImageRepository;
 import com.notfound.bookservice.repository.BookRepository;
 import com.notfound.bookservice.repository.CategoryRepository;
 import com.notfound.bookservice.service.AdminCatalogService;
+import com.notfound.bookservice.service.GeminiService;
 import com.notfound.bookservice.service.ImageService;
+import com.notfound.bookservice.service.QdrantService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -36,6 +39,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AdminCatalogServiceImpl implements AdminCatalogService {
 
     private final BookRepository bookRepository;
@@ -43,6 +47,8 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     private final AuthorRepository authorRepository;
     private final BookImageRepository bookImageRepository;
     private final ImageService imageService;
+    private final GeminiService geminiService;
+    private final QdrantService qdrantService;
 
     @Override
     @Transactional
@@ -60,7 +66,9 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
                 .status(parseStatus(request.getStatus()))
                 .build();
         applyRelations(book, request.getAuthorIds(), request.getCategoryIds(), request.getImageUrls());
-        return mapToBookFullDetail(bookRepository.save(book));
+        book = bookRepository.save(book);
+        indexBookInQdrant(book);
+        return mapToBookFullDetail(book);
     }
 
     @Override
@@ -262,6 +270,20 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
             return Base64.getDecoder().decode(base64);
         } catch (Exception e) {
             throw new IllegalArgumentException("image không phải URL hoặc base64 hợp lệ");
+        }
+    }
+
+    private void indexBookInQdrant(Book book) {
+        String embeddingText = book.getTitle() + ". "
+                + (book.getDescription() != null ? book.getDescription() : "");
+        log.info("Creating embedding for book: {}", book.getId());
+
+        try {
+            double[] vector = geminiService.embed(embeddingText);
+            qdrantService.insertBookVector(book.getId(), vector, book);
+            log.info("Inserted vector to Qdrant for book: {}", book.getId());
+        } catch (Exception e) {
+            log.error("Failed to index book {} in Qdrant: {}", book.getId(), e.getMessage(), e);
         }
     }
 

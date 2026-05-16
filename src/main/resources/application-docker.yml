@@ -3,6 +3,15 @@ cloudinary:
   api-key: ${CLOUDINARY_API_KEY:}
   api-secret: ${CLOUDINARY_API_SECRET:}
 
+gemini:
+  api:
+    key: ${GEMINI_API_KEY:}
+
+qdrant:
+  url: ${QDRANT_URL:}
+  api:
+    key: ${QDRANT_API_KEY:}
+
 spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://book-db:3306/bookstore_book?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
