@@ -130,4 +130,28 @@ public class QdrantServiceImpl implements QdrantService {
             return List.of();
         }
     }
+
+    @Override
+    public void deleteBookVector(UUID bookId) {
+        if (qdrantUrl == null || qdrantUrl.isBlank() || apiKey == null || apiKey.isBlank()) {
+            log.warn("Qdrant is not configured, skipping vector delete for book {}", bookId);
+            return;
+        }
+
+        String url = qdrantUrl + "/collections/books/points/delete?wait=true";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("api-key", apiKey);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> body = Map.of("points", List.of(bookId.toString()));
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+        try {
+            restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+            log.info("Deleted vector from Qdrant for book: {}", bookId);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to delete vector from Qdrant", e);
+        }
+    }
 }

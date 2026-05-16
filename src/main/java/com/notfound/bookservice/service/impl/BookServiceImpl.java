@@ -29,6 +29,7 @@ import com.notfound.bookservice.repository.AuthorRepository;
 import com.notfound.bookservice.repository.BookRepository;
 import com.notfound.bookservice.repository.CategoryRepository;
 import com.notfound.bookservice.service.BookService;
+import com.notfound.bookservice.service.BookVectorSyncService;
 import com.notfound.bookservice.service.GeminiService;
 import com.notfound.bookservice.service.QdrantService;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +64,7 @@ public class BookServiceImpl implements BookService {
     private final BookMapper bookMapper;
     private final GeminiService geminiService;
     private final QdrantService qdrantService;
+    private final BookVectorSyncService bookVectorSyncService;
 
     @Override
     @Transactional(readOnly = true)
@@ -215,7 +217,9 @@ public class BookServiceImpl implements BookService {
                 .build();
 
         applyRelations(book, request.getAuthorIds(), request.getCategoryIds(), request.getImageUrls());
-        return bookMapper.toBookResponse(bookRepository.save(book));
+        book = bookRepository.save(book);
+        bookVectorSyncService.index(book);
+        return bookMapper.toBookResponse(book);
     }
 
     @Override
@@ -234,7 +238,9 @@ public class BookServiceImpl implements BookService {
         if (request.getStatus() != null) book.setStatus(parseStatus(request.getStatus()));
 
         applyRelations(book, request.getAuthorIds(), request.getCategoryIds(), request.getImageUrls());
-        return bookMapper.toBookResponse(bookRepository.save(book));
+        book = bookRepository.save(book);
+        bookVectorSyncService.index(book);
+        return bookMapper.toBookResponse(book);
     }
 
     @Override
@@ -244,6 +250,7 @@ public class BookServiceImpl implements BookService {
             throw new ResourceNotFoundException("Book not found with id: " + id);
         }
         bookRepository.deleteById(id);
+        bookVectorSyncService.remove(id);
     }
 
     @Override

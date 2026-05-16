@@ -9,4 +9,6 @@ public interface QdrantService {
     void insertBookVector(UUID bookId, double[] vector, Book book);
 
     List<String> searchBookIds(double[] queryVector, int limit);
+
+    void deleteBookVector(UUID bookId);
 }
