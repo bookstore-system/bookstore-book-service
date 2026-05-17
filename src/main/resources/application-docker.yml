@@ -1,6 +1,6 @@
 app:
   jwt:
-    keys-dir: ${APP_JWT_KEYS_DIR:../Plan-And-Document/key}
+    keys-dir: ${APP_JWT_KEYS_DIR:/key}
 
 cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME:}
@@ -34,5 +34,5 @@ spring:
   jpa:
     hibernate:
       ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
-    show-sql: true
+    show-sql: false
     database-platform: ${SPRING_JPA_DATABASE_PLATFORM:org.hibernate.dialect.MySQLDialect}

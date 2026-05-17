@@ -36,3 +36,4 @@ build/
 k8s/secret.yaml
 
 .env
+/key
