@@ -1,7 +1,7 @@
 package com.notfound.bookservice.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.JsonNodeFactory;
 import com.notfound.bookservice.config.SagaStockProperties;
 import com.notfound.bookservice.messaging.SagaEventPublisher;
 import com.notfound.bookservice.messaging.dto.SagaMessageEnvelope;
