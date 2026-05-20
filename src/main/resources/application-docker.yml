@@ -25,7 +25,20 @@ clients:
   qdrant:
     url: ${QDRANT_URL:}
 
+bookstore:
+  saga:
+    enabled: true
+    commands-exchange: bookstore.commands
+    events-exchange: bookstore.events
+    commands-queue: book.commands.queue
+    reservation-ttl-minutes: 30
+
 spring:
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:rabbitmq}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://book-db:3306/bookstore_book?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${SPRING_DATASOURCE_USERNAME:bookstore}

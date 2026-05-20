@@ -57,8 +57,12 @@ public class Book {
 
     Double importPrice;
 
-    @Column(nullable = false)
+    @Column(name = "stock_quantity", nullable = false)
     Integer stockQuantity;
+
+    @Column(name = "reserved_stock", nullable = false)
+    @Builder.Default
+    Integer reservedStock = 0;
 
     LocalDate publishDate;
 
@@ -107,10 +111,25 @@ public class Book {
         LocalDateTime now = LocalDateTime.now();
         createdAt = now;
         updatedAt = now;
+        if (reservedStock == null) {
+            reservedStock = 0;
+        }
     }
 
     @PreUpdate
     void onUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+
+    public int getOnHandStock() {
+        return stockQuantity == null ? 0 : stockQuantity;
+    }
+
+    public int getReservedStockSafe() {
+        return reservedStock == null ? 0 : reservedStock;
+    }
+
+    public int getAvailableStock() {
+        return getOnHandStock() - getReservedStockSafe();
     }
 }

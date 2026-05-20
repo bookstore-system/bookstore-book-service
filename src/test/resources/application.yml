@@ -1,3 +1,7 @@
+bookstore:
+  saga:
+    enabled: false
+
 spring:
   profiles:
     active: test
