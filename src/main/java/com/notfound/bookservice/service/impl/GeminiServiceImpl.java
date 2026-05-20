@@ -29,6 +29,9 @@ public class GeminiServiceImpl implements GeminiService {
 
     @Override
     public double[] embed(String text) {
+        if (text == null || text.isBlank()) {
+            throw new IllegalArgumentException("text must not be null or blank");
+        }
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("Gemini API key is not configured (GEMINI_API_KEY)");
         }

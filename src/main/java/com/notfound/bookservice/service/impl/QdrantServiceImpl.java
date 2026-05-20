@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -32,6 +33,12 @@ public class QdrantServiceImpl implements QdrantService {
 
     @Override
     public void insertBookVector(UUID bookId, double[] vector, Book book) {
+        Objects.requireNonNull(bookId, "bookId must not be null");
+        Objects.requireNonNull(book, "book must not be null");
+        Objects.requireNonNull(vector, "vector must not be null");
+        if (vector.length == 0) {
+            throw new IllegalArgumentException("vector must not be empty");
+        }
         assertQdrantConfigured();
 
         List<String> authorNames = book.getAuthors() == null
@@ -61,12 +68,9 @@ public class QdrantServiceImpl implements QdrantService {
             vectorList.add(v);
         }
 
-        Map<String, Object> namedVector = new HashMap<>();
-        namedVector.put("", vectorList);
-
         Map<String, Object> point = new HashMap<>();
         point.put("id", bookId.toString());
-        point.put("vector", namedVector);
+        point.put("vector", vectorList);
         point.put("payload", payload);
 
         Map<String, Object> body = new HashMap<>();
@@ -80,7 +84,7 @@ public class QdrantServiceImpl implements QdrantService {
     }
 
     @Override
-    public List<String> searchBookIds(double[] queryVector, int limit) {
+    public List<UUID> searchBookIds(double[] queryVector, int limit) {
         if (!isQdrantConfigured()) {
             log.warn("Qdrant is not configured, skipping vector search");
             return List.of();
@@ -102,7 +106,15 @@ public class QdrantServiceImpl implements QdrantService {
             List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
 
             return result.stream()
-                    .map(item -> item.get("id").toString())
+                    .map(item -> {
+                        try {
+                            return UUID.fromString(item.get("id").toString());
+                        } catch (IllegalArgumentException e) {
+                            log.warn("Skipping non-UUID point id from Qdrant: {}", item.get("id"));
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
                     .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("Qdrant search failed: {}", e.getMessage(), e);

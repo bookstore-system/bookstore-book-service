@@ -25,6 +25,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -68,7 +70,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
                 .build();
         applyRelations(book, request.getAuthorIds(), request.getCategoryIds(), request.getImageUrls());
         book = bookRepository.save(book);
-        bookVectorSyncService.index(book);
+        scheduleVectorIndexAfterCommit(book);
         return mapToBookFullDetail(book);
     }
 
@@ -93,7 +95,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
         if (request.getStatus() != null) book.setStatus(parseStatus(request.getStatus()));
         applyRelations(book, request.getAuthorIds(), request.getCategoryIds(), request.getImageUrls());
         book = bookRepository.save(book);
-        bookVectorSyncService.index(book);
+        scheduleVectorIndexAfterCommit(book);
         return mapToBookFullDetail(book);
     }
 
@@ -109,7 +111,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
             }
         }
         bookRepository.delete(book);
-        bookVectorSyncService.remove(bookId);
+        scheduleVectorRemoveAfterCommit(bookId);
         return "Xóa sách thành công";
     }
 
@@ -288,6 +290,32 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
             return Base64.getDecoder().decode(base64);
         } catch (Exception e) {
             throw new IllegalArgumentException("image không phải URL hoặc base64 hợp lệ");
+        }
+    }
+
+    private void scheduleVectorIndexAfterCommit(Book book) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    bookVectorSyncService.index(book);
+                }
+            });
+        } else {
+            bookVectorSyncService.index(book);
+        }
+    }
+
+    private void scheduleVectorRemoveAfterCommit(UUID bookId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    bookVectorSyncService.remove(bookId);
+                }
+            });
+        } else {
+            bookVectorSyncService.remove(bookId);
         }
     }
 
