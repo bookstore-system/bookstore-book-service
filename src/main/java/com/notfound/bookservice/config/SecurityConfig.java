@@ -38,6 +38,15 @@ public class SecurityConfig {
         "/v3/api-docs/**"
     };
 
+    /** POST nội bộ giữa microservice (Feign), không yêu cầu JWT/ADMIN. */
+    private static final String[] INTERNAL_BOOK_POST_ENDPOINTS = {
+        "/api/v1/books/batch",
+        "/api/v1/books/batch-details",
+        "/api/v1/books/validate-ids",
+        "/api/v1/books/reduce-stock",
+        "/api/v1/books/restore-stock"
+    };
+
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
     private final GatewayHeaderAuthenticationFilter gatewayHeaderAuthenticationFilter;
@@ -76,7 +85,9 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers("/api/v1/admin/**")
                         .hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/books/**")
+                        .requestMatchers(HttpMethod.POST, INTERNAL_BOOK_POST_ENDPOINTS)
+                        .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/books", "/api/v1/books/**")
                         .hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/books/**")
                         .hasRole("ADMIN")
