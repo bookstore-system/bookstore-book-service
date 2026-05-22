@@ -7,11 +7,12 @@ import com.notfound.bookservice.messaging.dto.SagaMessageEnvelope;
 import com.notfound.bookservice.messaging.dto.StockChangedPayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Component
@@ -31,12 +32,12 @@ public class SagaEventPublisher {
         event.setCorrelationId(command.getCorrelationId() != null ? command.getCorrelationId() : command.getSagaId());
         event.setCausationId(command.getEventId());
         event.setType(eventType);
-        event.setOccurredAt(Instant.now());
+        event.setOccurredAt(LocalDateTime.now());
         event.setOrderId(command.getOrderId());
         event.setUserId(command.getUserId());
         event.setPayload(objectMapper.valueToTree(payload));
 
-        rabbitTemplate.convertAndSend(properties.getEventsExchange(), routingKey, event);
+        rabbitTemplate.convertAndSend(properties.getEventsExchange(), routingKey, event, this::removeJavaTypeHeaders);
         log.info("Published saga event type={} sagaId={} orderId={}", eventType, event.getSagaId(), event.getOrderId());
     }
 
@@ -46,12 +47,23 @@ public class SagaEventPublisher {
         event.setSagaId(sagaId);
         event.setCorrelationId(sagaId);
         event.setType(SagaMessageTypes.CHANGED_EVENT);
-        event.setOccurredAt(Instant.now());
+        event.setOccurredAt(LocalDateTime.now());
         event.setOrderId(orderId);
         ObjectNode payload = objectMapper.valueToTree(changed);
         event.setPayload(payload);
 
-        rabbitTemplate.convertAndSend(properties.getEventsExchange(), SagaMessageTypes.RK_CHANGED_EVENT, event);
+        rabbitTemplate.convertAndSend(
+                properties.getEventsExchange(),
+                SagaMessageTypes.RK_CHANGED_EVENT,
+                event,
+                this::removeJavaTypeHeaders);
         log.debug("Published stock.changed bookId={} sagaId={}", changed.getBookId(), sagaId);
+    }
+
+    private Message removeJavaTypeHeaders(Message message) {
+        message.getMessageProperties().getHeaders().remove("__TypeId__");
+        message.getMessageProperties().getHeaders().remove("__ContentTypeId__");
+        message.getMessageProperties().getHeaders().remove("__KeyTypeId__");
+        return message;
     }
 }
