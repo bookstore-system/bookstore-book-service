@@ -1,0 +1,20 @@
+package com.notfound.bookservice.messaging.dto;
+
+import tools.jackson.databind.JsonNode;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Data
+public class SagaMessageEnvelope {
+    private UUID eventId;
+    private UUID sagaId;
+    private UUID correlationId;
+    private UUID causationId;
+    private String type;
+    private LocalDateTime occurredAt;
+    private UUID orderId;
+    private String userId;
+    private JsonNode payload;
+}

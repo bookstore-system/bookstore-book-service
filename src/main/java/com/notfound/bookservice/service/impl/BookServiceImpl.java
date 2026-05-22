@@ -41,6 +41,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -58,6 +60,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class BookServiceImpl implements BookService {
+    private static final int MAX_AI_SEARCH_LIMIT = 500;
+
     private final BookRepository bookRepository;
     private final AuthorRepository authorRepository;
     private final CategoryRepository categoryRepository;
@@ -87,15 +91,16 @@ public class BookServiceImpl implements BookService {
 
         try {
             double[] queryVector = geminiService.embed(searchKeyword);
-            List<String> bookIds = qdrantService.searchBookIds(queryVector, 50);
+            int requiredResults = (pageable.getPageNumber() + 1) * pageable.getPageSize();
+            int searchLimit = Math.min(Math.max(requiredResults, pageable.getPageSize()), MAX_AI_SEARCH_LIMIT);
+            List<UUID> bookIds = qdrantService.searchBookIds(queryVector, searchLimit);
 
             if (!bookIds.isEmpty()) {
-                List<UUID> uuidList = bookIds.stream().map(UUID::fromString).toList();
-                List<Book> dbBooks = bookRepository.findAllById(uuidList);
+                List<Book> dbBooks = bookRepository.findAllById(bookIds);
                 Map<UUID, Book> bookMap = dbBooks.stream()
                         .collect(Collectors.toMap(Book::getId, Function.identity()));
 
-                List<Book> orderedBooks = uuidList.stream()
+                List<Book> orderedBooks = bookIds.stream()
                         .map(bookMap::get)
                         .filter(Objects::nonNull)
                         .toList();
@@ -110,7 +115,11 @@ public class BookServiceImpl implements BookService {
                 return toPageResponse(bookPage);
             }
         } catch (Exception e) {
-            log.warn("AI vector search failed, falling back to database search: {}", e.getMessage());
+            log.warn(
+                    "AI vector search failed, falling back to database search: {} - {}",
+                    e.getClass().getName(),
+                    e.getMessage(),
+                    e);
         }
 
         log.warn("AI search empty or unavailable, using database search");
@@ -218,7 +227,7 @@ public class BookServiceImpl implements BookService {
 
         applyRelations(book, request.getAuthorIds(), request.getCategoryIds(), request.getImageUrls());
         book = bookRepository.save(book);
-        bookVectorSyncService.index(book);
+        scheduleVectorIndexAfterCommit(book);
         return bookMapper.toBookResponse(book);
     }
 
@@ -239,7 +248,7 @@ public class BookServiceImpl implements BookService {
 
         applyRelations(book, request.getAuthorIds(), request.getCategoryIds(), request.getImageUrls());
         book = bookRepository.save(book);
-        bookVectorSyncService.index(book);
+        scheduleVectorIndexAfterCommit(book);
         return bookMapper.toBookResponse(book);
     }
 
@@ -250,7 +259,7 @@ public class BookServiceImpl implements BookService {
             throw new ResourceNotFoundException("Book not found with id: " + id);
         }
         bookRepository.deleteById(id);
-        bookVectorSyncService.remove(id);
+        scheduleVectorRemoveAfterCommit(id);
     }
 
     @Override
@@ -436,6 +445,32 @@ public class BookServiceImpl implements BookService {
         Category saved = categoryRepository.save(
                 Category.builder().name(name).description(description).parentCategory(parent).build());
         return mapToCategoryResponse(saved, loadBookCountsPerCategory());
+    }
+
+    private void scheduleVectorIndexAfterCommit(Book book) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    bookVectorSyncService.index(book);
+                }
+            });
+        } else {
+            bookVectorSyncService.index(book);
+        }
+    }
+
+    private void scheduleVectorRemoveAfterCommit(UUID bookId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    bookVectorSyncService.remove(bookId);
+                }
+            });
+        } else {
+            bookVectorSyncService.remove(bookId);
+        }
     }
 
     private Book findBookById(UUID id) {

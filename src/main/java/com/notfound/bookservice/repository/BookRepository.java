@@ -59,4 +59,33 @@ public interface BookRepository extends JpaRepository<Book, UUID> {
     @Modifying
     @Query("UPDATE Book b SET b.stockQuantity = b.stockQuantity - :quantity WHERE b.id = :bookId AND b.stockQuantity >= :quantity")
     int decreaseStockIfEnough(@Param("bookId") UUID bookId, @Param("quantity") Integer quantity);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Book b
+            SET b.reservedStock = b.reservedStock + :quantity
+            WHERE b.id = :bookId
+              AND (b.stockQuantity - b.reservedStock) >= :quantity
+            """)
+    int reserveStockIfAvailable(@Param("bookId") UUID bookId, @Param("quantity") int quantity);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Book b
+            SET b.reservedStock = b.reservedStock - :quantity,
+                b.stockQuantity = b.stockQuantity - :quantity
+            WHERE b.id = :bookId
+              AND b.reservedStock >= :quantity
+              AND b.stockQuantity >= :quantity
+            """)
+    int confirmReservedStock(@Param("bookId") UUID bookId, @Param("quantity") int quantity);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Book b
+            SET b.reservedStock = b.reservedStock - :quantity
+            WHERE b.id = :bookId
+              AND b.reservedStock >= :quantity
+            """)
+    int releaseReservedStock(@Param("bookId") UUID bookId, @Param("quantity") int quantity);
 }
