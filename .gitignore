@@ -34,3 +34,6 @@ build/
 
 # Ignore secret files
 k8s/secret.yaml
+
+.env
+/key

@@ -1,10 +1,29 @@
+gemini:
+  api:
+    key: ${GEMINI_API_KEY:}
+  embedding:
+    model: ${GEMINI_EMBEDDING_MODEL:gemini-embedding-001}
+    output-dimensionality: ${GEMINI_EMBEDDING_DIMENSION:768}
+
+qdrant:
+  url: ${QDRANT_URL:}
+  api:
+    key: ${QDRANT_API_KEY:}
+
+clients:
+  gemini:
+    url: https://generativelanguage.googleapis.com
+  qdrant:
+    url: ${QDRANT_URL:}
+
 spring:
   datasource:
-    url: jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:bookstore_book}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USERNAME:bookstore}
+    password: ${DB_PASSWORD:bookstore}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: false
+    database-platform: org.hibernate.dialect.MySQLDialect
