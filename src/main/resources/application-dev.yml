@@ -23,7 +23,7 @@ clients:
   gemini:
     url: https://generativelanguage.googleapis.com
   qdrant:
-    url: ${QDRANT_URL:}
+    url: ${QDRANT_URL:http://localhost:6333}
 
 bookstore:
   saga:

@@ -11,7 +11,7 @@ import java.util.Map;
 
 @FeignClient(
         name = "qdrant-client",
-        url = "${clients.qdrant.url}",
+        url = "${clients.qdrant.url:http://localhost:6333}",
         configuration = QdrantFeignConfig.class
 )
 public interface QdrantClient {
