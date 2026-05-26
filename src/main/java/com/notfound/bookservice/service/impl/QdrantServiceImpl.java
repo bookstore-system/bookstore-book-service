@@ -25,7 +25,7 @@ public class QdrantServiceImpl implements QdrantService {
 
     private final QdrantClient qdrantClient;
 
-    @Value("${clients.qdrant.url:}")
+    @Value("${qdrant.url:}")
     private String qdrantUrl;
 
     @Value("${qdrant.api.key:}")

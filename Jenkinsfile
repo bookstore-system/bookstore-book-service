@@ -58,9 +58,14 @@ pipeline {
             steps {
                 withCredentials([
                     usernamePassword(credentialsId: 'db-creds', usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD'),
+                    usernamePassword(credentialsId: 'rabbitmq-cred', usernameVariable: 'RABBITMQ_USERNAME', passwordVariable: 'RABBITMQ_PASSWORD'),
+                    file(credentialsId: 'jwt-public-pem', variable: 'JWT_PUBLIC_PEM'),
                     string(credentialsId: 'cloudinary-cloud-name', variable: 'CLOUDINARY_CLOUD_NAME'),
                     string(credentialsId: 'cloudinary-api-key', variable: 'CLOUDINARY_API_KEY'),
-                    string(credentialsId: 'cloudinary-api-secret', variable: 'CLOUDINARY_API_SECRET')
+                    string(credentialsId: 'cloudinary-api-secret', variable: 'CLOUDINARY_API_SECRET'),
+                    string(credentialsId: 'gemini-api-key', variable: 'GEMINI_API_KEY'),
+                    string(credentialsId: 'qdrant-url', variable: 'QDRANT_URL'),
+                    string(credentialsId: 'qdrant-api-key', variable: 'QDRANT_API_KEY')
                 ]) {
                     sh '''
                 export KUBECONFIG=/var/jenkins_home/.kube/config
@@ -78,6 +83,16 @@ pipeline {
                   --from-literal=CLOUDINARY_CLOUD_NAME="$CLOUDINARY_CLOUD_NAME" \
                   --from-literal=CLOUDINARY_API_KEY="$CLOUDINARY_API_KEY" \
                   --from-literal=CLOUDINARY_API_SECRET="$CLOUDINARY_API_SECRET" \
+                  --from-literal=RABBITMQ_USERNAME="$RABBITMQ_USERNAME" \
+                  --from-literal=RABBITMQ_PASSWORD="$RABBITMQ_PASSWORD" \
+                  --from-literal=GEMINI_API_KEY="$GEMINI_API_KEY" \
+                  --from-literal=QDRANT_URL="$QDRANT_URL" \
+                  --from-literal=QDRANT_API_KEY="$QDRANT_API_KEY" \
+                  --dry-run=client -o yaml | kubectl apply -f -
+
+                # Book service only needs public.pem to verify JWT.
+                kubectl create secret generic book-service-jwt-public-key \
+                  --from-file=public.pem="$JWT_PUBLIC_PEM" \
                   --dry-run=client -o yaml | kubectl apply -f -
 
                 # Deploy app.
