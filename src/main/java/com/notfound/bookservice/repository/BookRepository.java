@@ -60,6 +60,32 @@ public interface BookRepository extends JpaRepository<Book, UUID> {
     @Query("UPDATE Book b SET b.stockQuantity = b.stockQuantity - :quantity WHERE b.id = :bookId AND b.stockQuantity >= :quantity")
     int decreaseStockIfEnough(@Param("bookId") UUID bookId, @Param("quantity") Integer quantity);
 
+    @Query("""
+            SELECT b.id AS id,
+                   b.title AS title,
+                   b.price AS price,
+                   b.discountPrice AS discountPrice,
+                   b.stockQuantity AS stockQuantity,
+                   b.reservedStock AS reservedStock
+            FROM Book b
+            WHERE b.id IN :ids
+            """)
+    List<BatchBookProjection> findBatchBooksByIdIn(@Param("ids") List<UUID> ids);
+
+    interface BatchBookProjection {
+        UUID getId();
+
+        String getTitle();
+
+        Double getPrice();
+
+        Double getDiscountPrice();
+
+        Integer getStockQuantity();
+
+        Integer getReservedStock();
+    }
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE Book b

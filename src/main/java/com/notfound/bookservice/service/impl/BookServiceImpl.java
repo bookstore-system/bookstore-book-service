@@ -26,6 +26,7 @@ import com.notfound.bookservice.model.entity.BookImage;
 import com.notfound.bookservice.model.entity.Category;
 import com.notfound.bookservice.model.mapper.BookMapper;
 import com.notfound.bookservice.repository.AuthorRepository;
+import com.notfound.bookservice.repository.BookImageRepository;
 import com.notfound.bookservice.repository.BookRepository;
 import com.notfound.bookservice.repository.CategoryRepository;
 import com.notfound.bookservice.service.BookService;
@@ -45,6 +46,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -61,8 +63,11 @@ import java.util.stream.Collectors;
 @Slf4j
 public class BookServiceImpl implements BookService {
     private static final int MAX_AI_SEARCH_LIMIT = 500;
+    private static final String BOOK_BATCH_LOG_KEY = "BOOK_BATCH_FLOW";
+    private static final long BOOK_BATCH_SLOW_THRESHOLD_MS = 1_000L;
 
     private final BookRepository bookRepository;
+    private final BookImageRepository bookImageRepository;
     private final AuthorRepository authorRepository;
     private final CategoryRepository categoryRepository;
     private final BookMapper bookMapper;
@@ -269,11 +274,26 @@ public class BookServiceImpl implements BookService {
 
     @Override
     public BatchBooksResponse getBooksBatch(List<UUID> ids) {
-        List<UUID> requestIds = ids == null ? List.of() : ids;
-        List<Book> books = requestIds.isEmpty() ? List.of() : bookRepository.findAllById(requestIds);
+        long startedAt = System.nanoTime();
+        List<UUID> requestIds = ids == null
+                ? List.of()
+                : ids.stream().filter(Objects::nonNull).toList();
+        List<UUID> lookupIds = requestIds.stream().distinct().toList();
 
-        Map<UUID, Book> booksById = books.stream()
-                .collect(Collectors.toMap(Book::getId, Function.identity()));
+        long stageStartedAt = System.nanoTime();
+        List<BookRepository.BatchBookProjection> books = lookupIds.isEmpty()
+                ? List.of()
+                : bookRepository.findBatchBooksByIdIn(lookupIds);
+        log.info("{} stage=query_books_done idsCount={} foundCount={} durationMs={}",
+                BOOK_BATCH_LOG_KEY, lookupIds.size(), books.size(), elapsedMs(stageStartedAt));
+
+        stageStartedAt = System.nanoTime();
+        Map<UUID, String> thumbnailByBookId = loadThumbnailsByBookId(lookupIds);
+        log.info("{} stage=query_thumbnails_done idsCount={} foundCount={} durationMs={}",
+                BOOK_BATCH_LOG_KEY, lookupIds.size(), thumbnailByBookId.size(), elapsedMs(stageStartedAt));
+
+        Map<UUID, BookRepository.BatchBookProjection> booksById = books.stream()
+                .collect(Collectors.toMap(BookRepository.BatchBookProjection::getId, Function.identity()));
 
         List<BatchBookItemResponse> items = requestIds.stream()
                 .map(booksById::get)
@@ -283,8 +303,8 @@ public class BookServiceImpl implements BookService {
                         .title(book.getTitle())
                         .price(book.getPrice())
                         .discountPrice(book.getDiscountPrice())
-                        .thumbnailUrl(getThumbnailUrl(book))
-                        .inStock(book.getStockQuantity() != null && book.getStockQuantity() > 0)
+                        .thumbnailUrl(thumbnailByBookId.get(book.getId()))
+                        .inStock(availableStock(book) > 0)
                         .build())
                 .toList();
 
@@ -293,10 +313,22 @@ public class BookServiceImpl implements BookService {
                 .filter(id -> !existingIds.contains(id))
                 .toList();
 
-        return BatchBooksResponse.builder()
+        BatchBooksResponse response = BatchBooksResponse.builder()
                 .items(items)
                 .missingIds(missingIds)
                 .build();
+
+        long totalDurationMs = elapsedMs(startedAt);
+        if (totalDurationMs >= BOOK_BATCH_SLOW_THRESHOLD_MS) {
+            log.warn("{} stage=slow_success idsCount={} foundCount={} missingCount={} totalDurationMs={} thresholdMs={}",
+                    BOOK_BATCH_LOG_KEY, lookupIds.size(), items.size(), missingIds.size(),
+                    totalDurationMs, BOOK_BATCH_SLOW_THRESHOLD_MS);
+        } else {
+            log.info("{} stage=success idsCount={} foundCount={} missingCount={} totalDurationMs={}",
+                    BOOK_BATCH_LOG_KEY, lookupIds.size(), items.size(), missingIds.size(), totalDurationMs);
+        }
+
+        return response;
     }
 
     @Override
@@ -519,6 +551,29 @@ public class BookServiceImpl implements BookService {
             return null;
         }
         return book.getImages().get(0).getUrl();
+    }
+
+    private Map<UUID, String> loadThumbnailsByBookId(List<UUID> bookIds) {
+        if (bookIds == null || bookIds.isEmpty()) {
+            return Map.of();
+        }
+        return bookImageRepository.findThumbnailsByBookIdIn(bookIds).stream()
+                .filter(image -> image.getBookId() != null && StringUtils.hasText(image.getUrl()))
+                .collect(Collectors.toMap(
+                        BookImageRepository.BookThumbnailProjection::getBookId,
+                        BookImageRepository.BookThumbnailProjection::getUrl,
+                        (first, ignored) -> first
+                ));
+    }
+
+    private int availableStock(BookRepository.BatchBookProjection book) {
+        int stockQuantity = book.getStockQuantity() == null ? 0 : book.getStockQuantity();
+        int reservedStock = book.getReservedStock() == null ? 0 : book.getReservedStock();
+        return stockQuantity - reservedStock;
+    }
+
+    private long elapsedMs(long startedAt) {
+        return Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
     }
 
     private Map<UUID, Long> loadBookCountsPerCategory() {
