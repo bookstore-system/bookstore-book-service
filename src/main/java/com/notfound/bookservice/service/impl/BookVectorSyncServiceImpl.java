@@ -1,6 +1,7 @@
 package com.notfound.bookservice.service.impl;
 
 import com.notfound.bookservice.model.entity.Book;
+import com.notfound.bookservice.model.entity.Author;
 import com.notfound.bookservice.model.entity.Category;
 import com.notfound.bookservice.repository.BookRepository;
 import com.notfound.bookservice.service.BookVectorSyncService;
@@ -53,6 +54,12 @@ public class BookVectorSyncServiceImpl implements BookVectorSyncService {
 
     private String buildEmbeddingText(Book book) {
         StringBuilder text = new StringBuilder(book.getTitle());
+        if (book.getAuthors() != null && !book.getAuthors().isEmpty()) {
+            String authorNames = book.getAuthors().stream()
+                    .map(Author::getName)
+                    .collect(Collectors.joining(", "));
+            text.append(". Tác giả: ").append(authorNames);
+        }
         if (book.getCategories() != null && !book.getCategories().isEmpty()) {
             String categoryNames = book.getCategories().stream()
                     .map(Category::getName)

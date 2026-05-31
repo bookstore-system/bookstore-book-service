@@ -50,6 +50,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -93,6 +94,9 @@ public class BookServiceImpl implements BookService {
 
         String searchKeyword = keyword.trim();
         log.info("AI searching books with keyword: {}", searchKeyword);
+        List<Book> exactMatchedBooks = bookRepository
+                .searchBooks(searchKeyword, PageRequest.of(0, MAX_AI_SEARCH_LIMIT))
+                .getContent();
 
         try {
             double[] queryVector = geminiService.embed(searchKeyword);
@@ -110,14 +114,7 @@ public class BookServiceImpl implements BookService {
                         .filter(Objects::nonNull)
                         .toList();
 
-                int start = (int) pageable.getOffset();
-                int end = Math.min(start + pageable.getPageSize(), orderedBooks.size());
-                List<Book> pagedBooks = start >= orderedBooks.size()
-                        ? List.of()
-                        : orderedBooks.subList(start, end);
-
-                Page<Book> bookPage = new PageImpl<>(pagedBooks, pageable, orderedBooks.size());
-                return toPageResponse(bookPage);
+                return toPageResponse(toPage(mergeExactAndVectorResults(exactMatchedBooks, orderedBooks), pageable));
             }
         } catch (Exception e) {
             log.warn(
@@ -125,6 +122,10 @@ public class BookServiceImpl implements BookService {
                     e.getClass().getName(),
                     e.getMessage(),
                     e);
+        }
+
+        if (!exactMatchedBooks.isEmpty()) {
+            return toPageResponse(toPage(exactMatchedBooks, pageable));
         }
 
         log.warn("AI search empty or unavailable, using database search");
@@ -612,6 +613,29 @@ public class BookServiceImpl implements BookService {
                 .totalPages(page.getTotalPages())
                 .totalElements(page.getTotalElements())
                 .build();
+    }
+
+    private List<Book> mergeExactAndVectorResults(List<Book> exactMatchedBooks, List<Book> vectorMatchedBooks) {
+        List<Book> merged = new ArrayList<>();
+        Set<UUID> seenBookIds = new LinkedHashSet<>();
+        for (Book book : exactMatchedBooks) {
+            if (book != null && seenBookIds.add(book.getId())) {
+                merged.add(book);
+            }
+        }
+        for (Book book : vectorMatchedBooks) {
+            if (book != null && seenBookIds.add(book.getId())) {
+                merged.add(book);
+            }
+        }
+        return merged;
+    }
+
+    private Page<Book> toPage(List<Book> books, Pageable pageable) {
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), books.size());
+        List<Book> pagedBooks = start >= books.size() ? List.of() : books.subList(start, end);
+        return new PageImpl<>(pagedBooks, pageable, books.size());
     }
 
     private int defaultPage(Integer page) {
