@@ -298,11 +298,11 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    bookVectorSyncService.index(book);
+                    bookVectorSyncService.index(book.getId());
                 }
             });
         } else {
-            bookVectorSyncService.index(book);
+            bookVectorSyncService.index(book.getId());
         }
     }
 
