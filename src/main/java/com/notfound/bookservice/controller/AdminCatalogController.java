@@ -5,6 +5,7 @@ import com.notfound.bookservice.model.dto.request.CreateBookRequest;
 import com.notfound.bookservice.model.dto.request.UpdateBookRequest;
 import com.notfound.bookservice.model.dto.request.UpdateCategoryRequest;
 import com.notfound.bookservice.model.dto.request.UploadAvatarRequest;
+import com.notfound.bookservice.model.dto.response.AdminBookQuickStatsResponse;
 import com.notfound.bookservice.model.dto.response.ApiResponse;
 import com.notfound.bookservice.model.dto.response.BookFullDetailResponse;
 import com.notfound.bookservice.model.dto.response.CategoryResponse;
@@ -49,6 +50,12 @@ public class AdminCatalogController {
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(
                 ApiResponse.success(adminCatalogService.getAllBooks(PageRequest.of(page, size))));
+    }
+
+    @GetMapping("/books/quick-stats")
+    @Operation(summary = "Lấy thống kê nhanh về sách (admin)")
+    public ResponseEntity<ApiResponse<AdminBookQuickStatsResponse>> getBookQuickStats() {
+        return ResponseEntity.ok(ApiResponse.success(adminCatalogService.getBookQuickStats()));
     }
 
     @GetMapping("/books/{bookId}")

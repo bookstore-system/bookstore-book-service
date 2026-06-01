@@ -24,6 +24,8 @@ public interface BookRepository extends JpaRepository<Book, UUID> {
 
     Optional<Book> findByIsbn(String isbn);
 
+    long countByStatus(Book.Status status);
+
     boolean existsByIsbn(String isbn);
 
     @Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM Book b WHERE b.isbn = :isbn AND b.id <> :id")
@@ -52,6 +54,15 @@ public interface BookRepository extends JpaRepository<Book, UUID> {
 
     @Query("SELECT b FROM Book b ORDER BY b.stockQuantity ASC, b.createdAt DESC")
     List<Book> findBestSellingBooks(Pageable pageable);
+
+    @Query("""
+            SELECT COUNT(b)
+            FROM Book b
+            WHERE b.status = :status
+              AND (COALESCE(b.stockQuantity, 0) - COALESCE(b.reservedStock, 0)) > 0
+              AND (COALESCE(b.stockQuantity, 0) - COALESCE(b.reservedStock, 0)) <= :threshold
+            """)
+    long countLowStockBooks(@Param("status") Book.Status status, @Param("threshold") int threshold);
 
     @Query("SELECT b FROM Book b ORDER BY function('RAND')")
     List<Book> findRandomBooks(Pageable pageable);

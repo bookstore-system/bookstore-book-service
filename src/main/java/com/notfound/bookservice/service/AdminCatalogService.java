@@ -5,6 +5,7 @@ import com.notfound.bookservice.model.dto.request.CreateBookRequest;
 import com.notfound.bookservice.model.dto.request.UpdateBookRequest;
 import com.notfound.bookservice.model.dto.request.UpdateCategoryRequest;
 import com.notfound.bookservice.model.dto.response.BookFullDetailResponse;
+import com.notfound.bookservice.model.dto.response.AdminBookQuickStatsResponse;
 import com.notfound.bookservice.model.dto.response.CategoryResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +25,8 @@ public interface AdminCatalogService {
     BookFullDetailResponse getBookDetail(UUID bookId);
 
     Page<BookFullDetailResponse> getAllBooks(Pageable pageable);
+
+    AdminBookQuickStatsResponse getBookQuickStats();
 
     BookFullDetailResponse uploadBookImages(UUID bookId, List<MultipartFile> images);
 

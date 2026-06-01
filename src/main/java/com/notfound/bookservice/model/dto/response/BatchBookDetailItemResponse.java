@@ -10,6 +10,7 @@ import java.util.UUID;
 public class BatchBookDetailItemResponse {
     private UUID bookId;
     private String title;
+    private String imageUrl;
     private Double price;
     private Double salePrice;
     private Integer stockQuantity;

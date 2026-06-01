@@ -13,5 +13,6 @@ public class BatchBookItemResponse {
     private Double price;
     private Double discountPrice;
     private String thumbnailUrl;
+    private Integer stockQuantity;
     private Boolean inStock;
 }
