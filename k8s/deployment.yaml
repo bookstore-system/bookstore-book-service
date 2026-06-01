@@ -70,6 +70,16 @@ spec:
             configMapKeyRef:
               name: book-service-config
               key: GEMINI_EMBEDDING_DIMENSION
+        - name: REVIEW_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: book-service-config
+              key: REVIEW_SERVICE_URL
+        - name: ORDER_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: book-service-config
+              key: ORDER_SERVICE_URL
 
         - name: DB_USERNAME
           valueFrom:
