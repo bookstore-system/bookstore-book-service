@@ -1,5 +1,7 @@
 package com.notfound.bookservice.service.impl;
 
+import com.notfound.bookservice.client.ReviewServiceClient;
+import com.notfound.bookservice.client.dto.ReviewSummaryResponse;
 import com.notfound.bookservice.exception.ResourceNotFoundException;
 import com.notfound.bookservice.model.dto.request.BookFilterRequest;
 import com.notfound.bookservice.model.dto.request.BookOptionsRequest;
@@ -72,6 +74,7 @@ public class BookServiceImpl implements BookService {
     private final AuthorRepository authorRepository;
     private final CategoryRepository categoryRepository;
     private final BookMapper bookMapper;
+    private final ReviewServiceClient reviewServiceClient;
     private final GeminiService geminiService;
     private final QdrantService qdrantService;
     private final BookVectorSyncService bookVectorSyncService;
@@ -173,7 +176,7 @@ public class BookServiceImpl implements BookService {
     public List<BookSummaryResponse> getBestSellingBooks(Integer limit) {
         int safeLimit = (limit == null || limit < 1) ? 10 : Math.min(limit, 50);
         return bookRepository.findBestSellingBooks(PageRequest.of(0, safeLimit)).stream()
-                .map(bookMapper::toBookSummaryResponse)
+                .map(this::toBookSummaryResponse)
                 .toList();
     }
 
@@ -181,7 +184,7 @@ public class BookServiceImpl implements BookService {
     public List<BookSummaryResponse> getSuggestedBooks(Integer limit) {
         int safeLimit = (limit == null || limit < 1) ? 10 : Math.min(limit, 50);
         return bookRepository.findRandomBooks(PageRequest.of(0, safeLimit)).stream()
-                .map(bookMapper::toBookSummaryResponse)
+                .map(this::toBookSummaryResponse)
                 .toList();
     }
 
@@ -197,8 +200,8 @@ public class BookServiceImpl implements BookService {
                     .findByCategoryId(category.getId(), PageRequest.of(0, safeBookLimit))
                     .getContent()
                     .stream()
-                    .map(bookMapper::toBookSummaryResponse)
-                    .toList();
+                            .map(this::toBookSummaryResponse)
+                            .toList();
             return new CategoryBooksResponse(mapToCategoryResponse(category, bookCounts), books);
         }).toList();
     }
@@ -212,7 +215,7 @@ public class BookServiceImpl implements BookService {
     @Override
     public BookResponse getBookById(UUID id) {
         Book book = findBookById(id);
-        return bookMapper.toBookResponse(book);
+        return toBookResponse(book);
     }
 
     @Override
@@ -234,7 +237,7 @@ public class BookServiceImpl implements BookService {
         applyRelations(book, request.getAuthorIds(), request.getCategoryIds(), request.getImageUrls());
         book = bookRepository.save(book);
         scheduleVectorIndexAfterCommit(book);
-        return bookMapper.toBookResponse(book);
+        return toBookResponse(book);
     }
 
     @Override
@@ -255,7 +258,7 @@ public class BookServiceImpl implements BookService {
         applyRelations(book, request.getAuthorIds(), request.getCategoryIds(), request.getImageUrls());
         book = bookRepository.save(book);
         scheduleVectorIndexAfterCommit(book);
-        return bookMapper.toBookResponse(book);
+        return toBookResponse(book);
     }
 
     @Override
@@ -305,6 +308,7 @@ public class BookServiceImpl implements BookService {
                         .price(book.getPrice())
                         .discountPrice(book.getDiscountPrice())
                         .thumbnailUrl(thumbnailByBookId.get(book.getId()))
+                        .stockQuantity(availableStock(book))
                         .inStock(availableStock(book) > 0)
                         .build())
                 .toList();
@@ -367,6 +371,7 @@ public class BookServiceImpl implements BookService {
     public List<BatchBookDetailItemResponse> getBatchBookDetails(List<UUID> bookIds) {
         List<UUID> requestIds = bookIds == null ? List.of() : bookIds;
         List<Book> books = requestIds.isEmpty() ? List.of() : bookRepository.findAllById(requestIds);
+        Map<UUID, String> thumbnailByBookId = loadThumbnailsByBookId(requestIds);
         Map<UUID, Book> booksById = books.stream()
                 .collect(Collectors.toMap(Book::getId, Function.identity()));
 
@@ -376,6 +381,7 @@ public class BookServiceImpl implements BookService {
                 .map(book -> BatchBookDetailItemResponse.builder()
                         .bookId(book.getId())
                         .title(book.getTitle())
+                        .imageUrl(thumbnailByBookId.get(book.getId()))
                         .price(book.getPrice())
                         .salePrice(book.getDiscountPrice())
                         .stockQuantity(book.getStockQuantity())
@@ -452,7 +458,7 @@ public class BookServiceImpl implements BookService {
                             .findByCategoryId(category.getId(), PageRequest.of(0, 1))
                             .stream()
                             .findFirst()
-                            .ifPresent(book -> builder.sampleBook(bookMapper.toBookResponse(book)));
+                            .ifPresent(book -> builder.sampleBook(toBookResponse(book)));
                     return builder.build();
                 })
                 .toList();
@@ -608,10 +614,51 @@ public class BookServiceImpl implements BookService {
 
     private PageResponse<BookSummaryResponse> toPageResponse(Page<Book> page) {
         return PageResponse.<BookSummaryResponse>builder()
-                .content(page.getContent().stream().map(bookMapper::toBookSummaryResponse).toList())
+                .content(page.getContent().stream().map(this::toBookSummaryResponse).toList())
                 .currentPage(page.getNumber())
                 .totalPages(page.getTotalPages())
                 .totalElements(page.getTotalElements())
+                .build();
+    }
+
+    private BookResponse toBookResponse(Book book) {
+        BookResponse response = bookMapper.toBookResponse(book);
+        applyReviewSummary(book.getId(), response);
+        return response;
+    }
+
+    private BookSummaryResponse toBookSummaryResponse(Book book) {
+        BookSummaryResponse response = bookMapper.toBookSummaryResponse(book);
+        applyReviewSummary(book.getId(), response);
+        return response;
+    }
+
+    private void applyReviewSummary(UUID bookId, BookResponse response) {
+        ReviewSummaryResponse summary = fetchReviewSummary(bookId);
+        response.setAverageRating(summary.getAverageRating());
+        response.setReviewCount(summary.getTotalReviews() == null ? 0 : summary.getTotalReviews().intValue());
+    }
+
+    private void applyReviewSummary(UUID bookId, BookSummaryResponse response) {
+        ReviewSummaryResponse summary = fetchReviewSummary(bookId);
+        response.setAverageRating(summary.getAverageRating());
+        response.setReviewCount(summary.getTotalReviews() == null ? 0 : summary.getTotalReviews().intValue());
+    }
+
+    private ReviewSummaryResponse fetchReviewSummary(UUID bookId) {
+        try {
+            com.notfound.bookservice.client.dto.ApiResponse<ReviewSummaryResponse> response =
+                    reviewServiceClient.getBookReviewSummary(bookId);
+            if (response != null && response.getResult() != null) {
+                return response.getResult();
+            }
+        } catch (Exception ex) {
+            log.warn("Could not load review summary for bookId={}: {}", bookId, ex.getMessage());
+        }
+        return ReviewSummaryResponse.builder()
+                .bookId(bookId)
+                .averageRating(0.0)
+                .totalReviews(0L)
                 .build();
     }
 

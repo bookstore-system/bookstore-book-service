@@ -1,11 +1,13 @@
 package com.notfound.bookservice.service.impl;
 
+import com.notfound.bookservice.client.OrderServiceClient;
 import com.notfound.bookservice.exception.ResourceNotFoundException;
 import com.notfound.bookservice.model.dto.request.AdminCreateCategoryRequest;
 import com.notfound.bookservice.model.dto.request.CreateBookRequest;
 import com.notfound.bookservice.model.dto.request.UpdateBookRequest;
 import com.notfound.bookservice.model.dto.request.UpdateCategoryRequest;
 import com.notfound.bookservice.model.dto.response.BookFullDetailResponse;
+import com.notfound.bookservice.model.dto.response.AdminBookQuickStatsResponse;
 import com.notfound.bookservice.model.dto.response.CategoryResponse;
 import com.notfound.bookservice.model.entity.Author;
 import com.notfound.bookservice.model.entity.Book;
@@ -30,6 +32,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
@@ -51,6 +54,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     private final ImageService imageService;
     private final BookVectorSyncService bookVectorSyncService;
     private final AdminAuthorizationChecker adminAuthorizationChecker;
+    private final OrderServiceClient orderServiceClient;
 
     @Override
     @Transactional
@@ -127,6 +131,26 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     public Page<BookFullDetailResponse> getAllBooks(Pageable pageable) {
         adminAuthorizationChecker.requireAdmin();
         return bookRepository.findAll(pageable).map(this::mapToBookFullDetail);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AdminBookQuickStatsResponse getBookQuickStats() {
+        adminAuthorizationChecker.requireAdmin();
+        int lowStockThreshold = 5;
+        long activeBookCount = bookRepository.countByStatus(Book.Status.AVAILABLE);
+        long lowStockBookCount = bookRepository.countLowStockBooks(Book.Status.AVAILABLE, lowStockThreshold);
+        com.notfound.bookservice.client.dto.BookSalesStatsResponse salesStats = fetchBookSalesStats();
+
+        return AdminBookQuickStatsResponse.builder()
+                .activeBookCount(activeBookCount)
+                .lowStockBookCount(lowStockBookCount)
+                .lowStockThreshold(lowStockThreshold)
+                .totalBookRevenue(salesStats.getTotalRevenue())
+                .soldBookCount(salesStats.getSoldBookCount())
+                .averageRevenuePerBook(salesStats.getAverageRevenuePerBook())
+                .currency(salesStats.getCurrency())
+                .build();
     }
 
     @Override
@@ -323,6 +347,31 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
         return bookRepository
                 .findById(bookId)
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + bookId));
+    }
+
+    private com.notfound.bookservice.client.dto.BookSalesStatsResponse fetchBookSalesStats() {
+        try {
+            var response = orderServiceClient.getBookSalesStats();
+            if (response != null && response.getResult() != null) {
+                com.notfound.bookservice.client.dto.BookSalesStatsResponse result = response.getResult();
+                return com.notfound.bookservice.client.dto.BookSalesStatsResponse.builder()
+                        .totalRevenue(result.getTotalRevenue() != null ? result.getTotalRevenue() : BigDecimal.ZERO)
+                        .soldBookCount(result.getSoldBookCount() != null ? result.getSoldBookCount() : 0L)
+                        .averageRevenuePerBook(result.getAverageRevenuePerBook() != null
+                                ? result.getAverageRevenuePerBook()
+                                : BigDecimal.ZERO)
+                        .currency(StringUtils.hasText(result.getCurrency()) ? result.getCurrency() : "VND")
+                        .build();
+            }
+        } catch (Exception e) {
+            log.warn("Unable to fetch book sales stats from order-service: {}", e.getMessage());
+        }
+        return com.notfound.bookservice.client.dto.BookSalesStatsResponse.builder()
+                .totalRevenue(BigDecimal.ZERO)
+                .soldBookCount(0L)
+                .averageRevenuePerBook(BigDecimal.ZERO)
+                .currency("VND")
+                .build();
     }
 
     private Category findCategory(UUID categoryId) {

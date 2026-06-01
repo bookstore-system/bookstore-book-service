@@ -24,6 +24,10 @@ clients:
     url: https://generativelanguage.googleapis.com
   qdrant:
     url: ${QDRANT_URL:http://localhost:6333}
+  review:
+    url: ${REVIEW_SERVICE_URL:http://review-service:8080}
+  order:
+    url: ${ORDER_SERVICE_URL:http://order-service:8080}
 
 bookstore:
   saga:

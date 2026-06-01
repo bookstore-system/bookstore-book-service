@@ -62,11 +62,11 @@ public class StockSagaServiceImpl implements StockSagaService {
                 UUID bookId = item.getBookId();
                 int quantity = item.getQuantity();
                 if (quantity <= 0) {
-                    failReserve(command, "Invalid quantity for book " + bookId);
+                    failReserve(command, "Số lượng không hợp lệ cho sách " + getTitleForBookId(bookId) + ": " + quantity);
                     return;
                 }
                 if (!bookRepository.existsById(bookId)) {
-                    failReserve(command, "Book not found: " + bookId);
+                    failReserve(command, "Sách không tồn tại: " + getTitleForBookId(bookId));
                     return;
                 }
                 if (stockReservationRepository.findBySagaIdAndBookId(command.getSagaId(), bookId).isPresent()) {
@@ -74,7 +74,7 @@ public class StockSagaServiceImpl implements StockSagaService {
                 }
                 int updated = bookRepository.reserveStockIfAvailable(bookId, quantity);
                 if (updated == 0) {
-                    failReserve(command, "Insufficient stock for book " + bookId);
+                    failReserve(command, "Sản phẩm không đủ số lượng: " + getTitleForBookId(bookId));
                     return;
                 }
                 stockReservationRepository.save(StockReservation.builder()
@@ -265,6 +265,16 @@ public class StockSagaServiceImpl implements StockSagaService {
                 SagaMessageTypes.RK_FAILED_EVENT,
                 Map.of("reason", reason, "step", "confirm"));
         log.warn("Stock confirm failed sagaId={} reason={}", command.getSagaId(), reason);
+    }
+
+    private String getTitleForBookId(UUID bookId) {
+        if (bookId == null) {
+            return "không xác định";
+        }
+        return bookRepository.findById(bookId)
+                .map(Book::getTitle)
+                .filter(title -> title != null && !title.isBlank())
+                .orElse(bookId.toString());
     }
 
     private void publishStockChanged(SagaMessageEnvelope command, UUID bookId) {
